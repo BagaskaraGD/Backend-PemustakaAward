@@ -1,0 +1,17 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
+
+class ControllerKaryawan extends Controller
+{
+    public function readKaryawan()
+    {
+        $data = DB::table('v_karyawan')->get();
+        return response()->json($data);
+    }
+}

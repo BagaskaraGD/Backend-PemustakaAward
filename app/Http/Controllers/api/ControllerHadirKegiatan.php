@@ -1,0 +1,172 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
+
+class ControllerHadirKegiatan extends Controller
+{
+    public function readHadirKegiatan()
+    {
+        // Ambil data dari tabel hadirkegiatan
+        $data = DB::table('hadirkegiatan_pust')->get();
+        return response()->json($data);
+    }
+    public function insHadirKegiatan(Request $request)
+    {
+        // Validasi input request
+        $validator = Validator::make($request->all(), [
+            'id' => 'required|numeric',
+            'id_jadwal' => 'required|numeric',
+            'nim'       => 'required|string|max:50',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors'  => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            // Eksekusi prosedur insert dengan named binding
+            DB::connection('oracle')->statement(
+                "BEGIN 
+                BOBBY21.INS_PUSTAWARD_HADIRKEG(
+                    :pid, 
+                    :pjadwal, 
+                    :pnim
+                ); 
+            END;",
+                [
+                    'pid'     => $request->id, // Ambil dari parameter body
+                    'pjadwal' => $request->id_jadwal,
+                    'pnim'    => $request->nim
+                ]
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Data hadir kegiatan berhasil ditambahkan',
+                'data'    => $request->all()
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengeksekusi prosedur INS_PUSTAWARD_HADIRKEG',
+                'error'   => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function updHadirKegiatan(Request $request, $id)
+    {
+        // Validasi input request
+        $validator = Validator::make($request->all(), [
+            'id_jadwal' => 'required|numeric',
+            'nim'       => 'required|string|max:50',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors'  => $validator->errors()
+            ], 422);
+        }
+
+        try {
+
+            $exists = DB::connection('oracle')->selectOne("
+            SELECT COUNT(*) AS JUMLAH 
+            FROM KPTA_22410100003.hadirkegiatan_pust 
+            WHERE ID_HADIR = :id", ['id' => $id]);
+
+            if (!$exists || $exists->jumlah == 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Data dengan ID tersebut tidak ditemukan.'
+                ], 404);
+            }
+            // Eksekusi prosedur update dengan named binding
+            DB::connection('oracle')->statement(
+                "BEGIN 
+            BOBBY21.UPD_PUSTAWARD_HADIRKEG(
+                :pid, 
+                :pjadwal, 
+                :pnim
+            ); 
+        END;",
+                [
+                    'pid'     => $id, // Ambil ID dari parameter route
+                    'pjadwal' => $request->id_jadwal,
+                    'pnim'    => $request->nim
+                ]
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Data hadir kegiatan berhasil diperbarui',
+                'data'    => array_merge(['id' => $id], $request->all())
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengeksekusi prosedur UPD_PUSTAWARD_HADIRKEG',
+                'error'   => $e->getMessage()
+            ], 500);
+        }
+    }
+    public function delHadirKegiatan(Request $request, $id)
+    {
+        // Validasi input ID
+        $validator = Validator::make(['id' => $id], [
+            'id' => 'required|numeric'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+
+            $exists = DB::connection('oracle')->selectOne("
+            SELECT COUNT(*) AS JUMLAH 
+            FROM KPTA_22410100003.hadirkegiatan_pust 
+            WHERE ID_HADIR = :id", ['id' => $id]);
+
+            if (!$exists || $exists->jumlah == 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Data dengan ID tersebut tidak ditemukan.'
+                ], 404);
+            }
+            // Eksekusi prosedur delete dengan named binding
+            DB::connection('oracle')->statement(
+                "BEGIN 
+                BOBBY21.DEL_PUSTAWARD_HADIRKEG(:pid); 
+            END;",
+                [
+                    'pid' => $id // Ambil ID dari parameter route
+                ]
+            );
+
+            return response()->json([
+                'success'    => true,
+                'message'    => 'Data hadir kegiatan berhasil dihapus',
+                'deleted_id' => $id
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengeksekusi prosedur DEL_PUSTAWARD_HADIRKEG',
+                'error'   => $e->getMessage()
+            ], 500);
+        }
+    }
+}
