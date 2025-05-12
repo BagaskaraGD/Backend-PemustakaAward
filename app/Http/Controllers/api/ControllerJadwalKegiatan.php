@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Carbon\Carbon;
 
 class ControllerJadwalKegiatan extends Controller
 {
@@ -21,11 +22,12 @@ class ControllerJadwalKegiatan extends Controller
             'id' => 'required|numeric',
             'id_pemateri' => 'required|numeric',
             'id_kegiatan' => 'required|numeric',
-            'tgl_kegiatan' => 'required|date',
-            'waktu_mulai' => 'required|date',
-            'waktu_selesai' => 'required|date',
+            'tgl_kegiatan' => 'required|date_format:Y-m-d',
+            'waktu_mulai' => 'required|date_format:Y-m-d H:i:s',
+            'waktu_selesai' => 'required|date_format:Y-m-d H:i:s',
             'bobot' => 'required|numeric',
-            'keterangan' => 'nullable|string|max:255'
+            'keterangan' => 'nullable|string|max:255',
+            'kode_random' => 'required|string|max:255'
         ]);
 
         if ($validator->fails()) {
@@ -35,6 +37,10 @@ class ControllerJadwalKegiatan extends Controller
             ], 422);
         }
 
+        $tgl_kegiatan = Carbon::parse($request->tgl_kegiatan)->format('Y-m-d');
+        $waktu_mulai = Carbon::parse($request->waktu_mulai)->format('Y-m-d H:i:s');
+        $waktu_selesai = Carbon::parse($request->waktu_selesai)->format('Y-m-d H:i:s');
+
         try {
             // Eksekusi stored procedure
             DB::connection('oracle')->statement(
@@ -43,22 +49,24 @@ class ControllerJadwalKegiatan extends Controller
                     :pid, 
                     :ppemateri, 
                     :pkegiatan, 
-                    :ptgl, 
-                    :pmulai, 
-                    :pselesai, 
+                    TO_DATE(:ptgl, 'YYYY-MM-DD'), 
+                    TO_DATE(:pmulai, 'YYYY-MM-DD HH24:MI:SS'), 
+                    TO_DATE(:pselesai, 'YYYY-MM-DD HH24:MI:SS'), 
                     :pbobot, 
-                    :pketerangan
+                    :pketerangan,
+                    :pkoderand
                 ); 
             END;",
                 [
-                    'pid' => $request->id,
-                    'ppemateri' => $request->id_pemateri,
-                    'pkegiatan' => $request->id_kegiatan,
-                    'ptgl' => $request->tgl_kegiatan,
-                    'pmulai' => $request->waktu_mulai,
-                    'pselesai' => $request->waktu_selesai,
-                    'pbobot' => $request->bobot,
-                    'pketerangan' => $request->keterangan
+                    'pid' => $request->id,  // ID_JADWAL
+                    'ppemateri' => $request->id_pemateri,  // ID_PEMATERI
+                    'pkegiatan' => $request->id_kegiatan,  // ID_KEGIATAN
+                    'ptgl' => $tgl_kegiatan,  // TGL_KEGIATAN
+                    'pmulai' => $waktu_mulai,  // WAKTU_MULAI
+                    'pselesai' => $waktu_selesai,  // WAKTU_SELESAI
+                    'pbobot' => $request->bobot,  // BOBOT
+                    'pketerangan' => $request->keterangan ?? null,  // KETERANGAN
+                    'pkoderand' => $request->kode_random  // KODE_RANDOM
                 ]
             );
 
@@ -85,7 +93,8 @@ class ControllerJadwalKegiatan extends Controller
             'waktu_mulai'    => 'required|date',
             'waktu_selesai'  => 'required|date',
             'bobot'          => 'required|numeric',
-            'keterangan'     => 'nullable|string|max:255'
+            'keterangan'     => 'nullable|string|max:255',
+            'kode_random' => 'required|string|max:255'
         ]);
 
         if ($validator->fails()) {
@@ -119,7 +128,9 @@ class ControllerJadwalKegiatan extends Controller
                 :pmulai,
                 :pselesai,
                 :pbobot,
-                :pketerangan
+                :pket,
+                :pkoderand
+
             );
         END;",
                 [
@@ -130,7 +141,8 @@ class ControllerJadwalKegiatan extends Controller
                     'pmulai'      => $request->waktu_mulai,
                     'pselesai'    => $request->waktu_selesai,
                     'pbobot'      => $request->bobot,
-                    'pketerangan' => $request->keterangan
+                    'pket'        => $request->keterangan,
+                    'pkoderand'       => $request->kode_random
                 ]
             );
 
