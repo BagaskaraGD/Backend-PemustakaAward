@@ -14,6 +14,47 @@ class ControllerRekapPoin extends Controller
         $data = DB::table('rekappoin_award')->get();
         return response()->json($data);
     }
+    public function readleaderboardMHS()
+    {
+        $data = DB::table('REKAPPOIN_AWARD as ra')
+            ->join('v_civitas as vc', 'ra.NIM', '=', 'vc.ID_CIVITAS')
+            ->select('vc.nama', 'ra.nim', 'vc.status', 'ra.rekap_jumlah')
+            ->where('vc.status', 'MHS')
+            ->orderByDesc('ra.rekap_jumlah')
+            ->get();
+        return response()->json($data);
+    }
+    public function readleaderboardDOSEN()
+    {
+        $data = DB::table('REKAPPOIN_AWARD as ra')
+            ->join('v_civitas as vc', 'ra.NIM', '=', 'vc.ID_CIVITAS')
+            ->select('vc.nama', 'ra.nim', 'vc.status', 'ra.nilai')
+            ->where('vc.status', 'DOSEN')
+            ->orderByDesc('ra.nilai')
+            ->get();
+        return response()->json($data);
+    }
+    public function readtopleaderboardMHS()
+    {
+        $data = DB::table('REKAPPOIN_AWARD as ra')
+            ->join('v_civitas as vc', 'ra.NIM', '=', 'vc.ID_CIVITAS')
+            ->select('vc.nama', 'ra.nim', 'vc.status', 'ra.nilai')
+            ->where('vc.status', 'MHS')
+            ->orderByDesc('ra.nilai')
+            ->limit(1)
+            ->get();
+
+        return response()->json($data);
+    }
+    public function readtopleaderboardDOSEN()
+    {
+        $data = DB::table('REKAPPOIN_AWARD as ra')
+            ->join('v_civitas as vc', 'ra.NIM', '=', 'vc.ID_CIVITAS')
+            ->select('max(nim)', 'max(nilai)')
+            ->where('vc.status', 'DOSEN')
+            ->get();
+        return response()->json($data);
+    }
     public function insRekapPoin(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -146,4 +187,20 @@ class ControllerRekapPoin extends Controller
             ], 500);
         }
     }
+    public function updateJumAksara($nim, $rekap_jumlah)
+    {
+        DB::table('REKAPPOIN_AWARD')
+            ->where('nim', $nim)
+            ->where('ID_KATEGORI', 4)
+            ->update([
+                'rekap_jumlah' => $rekap_jumlah
+            ]);
+        return response()->json([
+            'success' => true,
+            'message' => 'Jumlah aksara berhasil diperbarui',
+            'nim'     => $nim,
+            'rekap_jumlah' => $rekap_jumlah
+        ]);
+    }
+    public function updateJumKegiatan() {}
 }

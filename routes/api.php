@@ -100,7 +100,7 @@ Route::prefix('hadir-kegiatan')->group(function () {
 Route::prefix('periode')->group(function () {
     // GET /aksara-dinamika - Read all data
     Route::get('/', [ControllerPeriode::class, 'readPeriode']);
-    
+
     Route::get('/aktif', [ControllerPeriode::class, 'getPeriodeAktif']);
 
     // POST /aksara-dinamika - Insert new data
@@ -193,11 +193,15 @@ Route::prefix('rekap-poin')->group(function () {
     // GET /aksara-dinamika - Read all data
     Route::get('/', [ControllerRekapPoin::class, 'readRekapPoin']);
 
+    Route::get('/leaderboard/mhs', [ControllerRekapPoin::class, 'readleaderboardMHS']);
+
     // POST /aksara-dinamika - Insert new data
     Route::post('/', [ControllerRekapPoin::class, 'insRekapPoin']);
 
     // PUT /aksara-dinamika - Update data
     Route::put('/{id}', [ControllerRekapPoin::class, 'updRekapPoin']);
+
+    Route::put('/{nim}/{rekap_jumlah}', [ControllerRekapPoin::class, 'updateJumAksara']);
 
     // DELETE /aksara-dinamika/{id} - Delete data by ID
     Route::delete('/{id}', [ControllerRekapPoin::class, 'delRekapPoin']);
@@ -245,10 +249,26 @@ Route::prefix('karyawan')->group(function () {
 
     Route::get('/', [ControllerKaryawan::class, 'readKaryawan']);
 });
+
 Route::get('/challenge-count/{id}', function ($id) {
-    $count = DB::table('AKSARA_DINAMIKA')
-        ->where('nim', $id)
+    $count = DB::table('HISTORI_STATUS as hs')
+        ->join('AKSARA_DINAMIKA as ad', 'ad.ID_AKSARA_DINAMIKA', '=', 'hs.ID_AKSARA_DINAMIKA')
+        ->where('ad.nim', $id)
+        ->where('hs.STATUS', 'diterima')
         ->count();
 
     return response()->json(['count' => $count]);
+});
+Route::get('/myrank/{id}', function ($id) {
+    $data = DB::table(DB::raw('(SELECT 
+                                ra.nim,
+                                vc.nama,
+                                vc.status,
+                                ra.rekap_jumlah,
+                                ROW_NUMBER() OVER (ORDER BY ra.rekap_jumlah DESC) AS peringkat
+                            FROM REKAPPOIN_AWARD ra
+                            JOIN V_CIVITAS vc ON ra.nim = vc.ID_CIVITAS) ranking'))
+        ->where('nim', $id)
+        ->get();
+    return response()->json(['count' => $data]);
 });
