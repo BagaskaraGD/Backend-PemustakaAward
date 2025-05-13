@@ -169,4 +169,26 @@ class ControllerHadirKegiatan extends Controller
             ], 500);
         }
     }
+    public function getkehadiran($nim)
+    {
+        $data = DB::connection('oracle')
+            ->table('KEGIATAN_PUST as kp')
+            ->join('JADWAL_KEGIATAN_PUST as jkp', 'kp.ID_KEGIATAN', '=', 'jkp.ID_KEGIATAN')
+            ->join('PEMATERIKEGIATAN_PUST as pp', 'jkp.ID_PEMATERI', '=', 'pp.ID_PEMATERI')
+            ->join('HADIRKEGIATAN_PUST as hp', 'jkp.ID_JADWAL', '=', 'hp.ID_JADWAL')
+            ->select(
+                'kp.JUDUL_KEGIATAN',
+                'jkp.TGL_KEGIATAN',
+                DB::raw("REPLACE(TO_CHAR(jkp.WAKTU_MULAI, 'HH24:MI'), ':', '.') || ' - ' || REPLACE(TO_CHAR(jkp.WAKTU_SELESAI, 'HH24:MI'), ':', '.') AS JAM_KEGIATAN"),
+                'pp.NAMA_PEMATERI',
+                'kp.LOKASI',
+                'jkp.BOBOT'
+            )
+            ->where('hp.nim', '=', $nim)
+            ->get();
+        return response()->json([
+            'success' => true,
+            'data'    => $data
+        ]);
+    }
 }

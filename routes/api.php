@@ -95,6 +95,8 @@ Route::prefix('hadir-kegiatan')->group(function () {
 
     // DELETE /aksara-dinamika/{id} - Delete data by ID
     Route::delete('/{id}', [ControllerHadirKegiatan::class, 'delHadirKegiatan']);
+
+    Route::get('/kehadiran/{nim}', [ControllerHadirKegiatan::class, 'getkehadiran']);
 });
 
 Route::prefix('periode')->group(function () {
@@ -201,7 +203,9 @@ Route::prefix('rekap-poin')->group(function () {
     // PUT /aksara-dinamika - Update data
     Route::put('/{id}', [ControllerRekapPoin::class, 'updRekapPoin']);
 
-    Route::put('/{nim}/{rekap_jumlah}', [ControllerRekapPoin::class, 'updateJumAksara']);
+    Route::put('/aksara/{nim}/{rekap_jumlah}', [ControllerRekapPoin::class, 'updateJumAksara']);
+
+    Route::put('/kegiatan/{nim}/{rekap_jumlah}/{rekap_poin}', [ControllerRekapPoin::class, 'updateJumKegiatan']);
 
     // DELETE /aksara-dinamika/{id} - Delete data by ID
     Route::delete('/{id}', [ControllerRekapPoin::class, 'delRekapPoin']);
@@ -259,15 +263,29 @@ Route::get('/challenge-count/{id}', function ($id) {
 
     return response()->json(['count' => $count]);
 });
+
+Route::get('/kegiatan-count/{nim}', function ($nim) {
+    $count = DB::table('HADIRKEGIATAN_PUST')
+        ->where('NIM', $nim)
+        ->count();
+
+    return response()->json(['count' => $count]);
+});
+
 Route::get('/myrank/{id}', function ($id) {
-    $data = DB::table(DB::raw('(SELECT 
-                                ra.nim,
-                                vc.nama,
-                                vc.status,
-                                ra.rekap_jumlah,
-                                ROW_NUMBER() OVER (ORDER BY ra.rekap_jumlah DESC) AS peringkat
-                            FROM REKAPPOIN_AWARD ra
-                            JOIN V_CIVITAS vc ON ra.nim = vc.ID_CIVITAS) ranking'))
+   
+    $data = DB::table(DB::raw("(
+        SELECT 
+            ra.nim,
+            vc.nama,
+            vc.status,
+            SUM(COALESCE(ra.REKAP_POIN, 0)) AS total_rekap_poin,
+            ROW_NUMBER() OVER (ORDER BY SUM(COALESCE(ra.REKAP_POIN, 0)) DESC) AS peringkat
+        FROM REKAPPOIN_AWARD ra
+        JOIN V_CIVITAS vc ON ra.nim = vc.ID_CIVITAS
+        GROUP BY ra.nim, vc.nama, vc.status
+        HAVING SUM(COALESCE(ra.REKAP_POIN, 0)) > 0
+    ) ranking"))
         ->where('nim', $id)
         ->get();
     return response()->json(['count' => $data]);

@@ -11,17 +11,36 @@ class ControllerRekapPoin extends Controller
 {
     public function readRekapPoin()
     {
-        $data = DB::table('rekappoin_award')->get();
+        $data = DB::table(DB::raw("(
+        SELECT 
+            ra.nim,
+            vc.nama,
+            vc.status,
+            SUM(COALESCE(ra.REKAP_POIN, 0)) total_rekap,
+            ROW_NUMBER() OVER (ORDER BY SUM(COALESCE(ra.REKAP_POIN, 0)) DESC) peringkat
+        FROM REKAPPOIN_AWARD ra
+        JOIN V_CIVITAS vc ON ra.nim = vc.ID_CIVITAS
+        GROUP BY ra.nim, vc.nama, vc.status
+        HAVING SUM(COALESCE(ra.REKAP_POIN, 0)) > 0
+    ) ranking"))
+            ->get();
         return response()->json($data);
     }
     public function readleaderboardMHS()
     {
         $data = DB::table('REKAPPOIN_AWARD as ra')
             ->join('v_civitas as vc', 'ra.NIM', '=', 'vc.ID_CIVITAS')
-            ->select('vc.nama', 'ra.nim', 'vc.status', 'ra.rekap_jumlah')
+            ->select(
+                'vc.nama',
+                'ra.nim',
+                'vc.status',
+                DB::raw('SUM(COALESCE(ra.REKAP_POIN, 0)) as total_rekap_poin')
+            )
             ->where('vc.status', 'MHS')
-            ->orderByDesc('ra.rekap_jumlah')
+            ->groupBy('ra.nim', 'vc.nama', 'vc.status')
+            ->orderByDesc('total_rekap_poin')
             ->get();
+
         return response()->json($data);
     }
     public function readleaderboardDOSEN()
@@ -202,5 +221,20 @@ class ControllerRekapPoin extends Controller
             'rekap_jumlah' => $rekap_jumlah
         ]);
     }
-    public function updateJumKegiatan() {}
+    public function updateJumKegiatan($nim, $rekap_jumlah, $rekap_poin)
+    {
+        DB::table('REKAPPOIN_AWARD')
+            ->where('nim', $nim)
+            ->where('ID_KATEGORI', 1)
+            ->update([
+                'rekap_jumlah' => $rekap_jumlah,
+                'rekap_poin'   => $rekap_poin
+            ]);
+        return response()->json([
+            'success' => true,
+            'message' => 'Jumlah aksara berhasil diperbarui',
+            'nim'     => $nim,
+            'rekap_jumlah' => $rekap_jumlah
+        ]);
+    }
 }
