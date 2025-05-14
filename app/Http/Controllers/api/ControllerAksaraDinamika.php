@@ -11,9 +11,16 @@ class ControllerAksaraDinamika extends Controller
 {
     public function readAksaraDinamika()
     {
-        $data = DB::table('aksara_dinamika')->get();
+        // $data = DB::table('aksara_dinamika')->get();
+        // return response()->json($data);
+        $data = DB::table('aksara_dinamika as ad')
+            ->join('v_buku_pust as vbp', 'ad.induk_buku', '=', 'vbp.induk')
+            ->join('v_civitas as vc', 'ad.nim', '=', 'vc.id_civitas')
+            ->select('*')
+        ->get();          
         return response()->json($data);
     }
+
     public function insAksaraDinamika(Request $request)
     {
         // Validasi input

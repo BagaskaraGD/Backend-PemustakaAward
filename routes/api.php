@@ -30,6 +30,8 @@ Route::prefix('aksara-dinamika')->group(function () {
     // GET /aksara-dinamika - Read all data
     Route::get('/', [ControllerAksaraDinamika::class, 'readAksaraDinamika']);
 
+    // Route::get('/civitas', [ControllerAksaraDinamika::class, 'readCivitas']);
+
     // POST /aksara-dinamika - Insert new data
     Route::post('/', [ControllerAksaraDinamika::class, 'insAksaraDinamika']);
 
