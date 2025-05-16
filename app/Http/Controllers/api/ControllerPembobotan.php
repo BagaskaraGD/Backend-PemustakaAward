@@ -222,4 +222,14 @@ class ControllerPembobotan extends Controller
             ], 500);
         }
     }
+    public function getpoinaksaradinamika()
+    {
+        $nilai = DB::table('PEMBOBOTAN_AWARD')
+            ->where('ID_JENIS_BOBOT', '8')
+            ->pluck('nilai');
+        return response()->json([
+            'success' => true,
+            'data' => $nilai
+        ]);
+    }
 }

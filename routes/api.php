@@ -155,6 +155,8 @@ Route::prefix('pembobotan')->group(function () {
 
     Route::get('/level3', [ControllerPembobotan::class, 'getNilailevel3']);
 
+    Route::get('/aksara-dinamika', [ControllerPembobotan::class, 'getpoinaksaradinamika']);
+
     // POST /aksara-dinamika - Insert new data
     Route::post('/', [ControllerPembobotan::class, 'insPembobotan']);
 
@@ -199,13 +201,18 @@ Route::prefix('rekap-poin')->group(function () {
 
     Route::get('/leaderboard/mhs', [ControllerRekapPoin::class, 'readleaderboardMHS']);
 
+    Route::get('/jumlah/kegiatan/{nim}', [ControllerRekapPoin::class, 'getjumlahkegiatan']);
+
+    Route::get('/jumlah/aksara/{nim}', [ControllerRekapPoin::class, 'getjumlahaksara']);
+
+
     // POST /aksara-dinamika - Insert new data
     Route::post('/', [ControllerRekapPoin::class, 'insRekapPoin']);
 
     // PUT /aksara-dinamika - Update data
     Route::put('/{id}', [ControllerRekapPoin::class, 'updRekapPoin']);
 
-    Route::put('/aksara/{nim}/{rekap_jumlah}', [ControllerRekapPoin::class, 'updateJumAksara']);
+    Route::put('/aksara/{nim}/{rekap_jumlah}/{rekap_poin}', [ControllerRekapPoin::class, 'updateJumAksara']);
 
     Route::put('/kegiatan/{nim}/{rekap_jumlah}/{rekap_poin}', [ControllerRekapPoin::class, 'updateJumKegiatan']);
 
@@ -275,20 +282,26 @@ Route::get('/kegiatan-count/{nim}', function ($nim) {
 });
 
 Route::get('/myrank/{id}', function ($id) {
-   
-    $data = DB::table(DB::raw("(
-        SELECT 
-            ra.nim,
-            vc.nama,
-            vc.status,
-            SUM(COALESCE(ra.REKAP_POIN, 0)) AS total_rekap_poin,
-            ROW_NUMBER() OVER (ORDER BY SUM(COALESCE(ra.REKAP_POIN, 0)) DESC) AS peringkat
-        FROM REKAPPOIN_AWARD ra
-        JOIN V_CIVITAS vc ON ra.nim = vc.ID_CIVITAS
-        GROUP BY ra.nim, vc.nama, vc.status
-        HAVING SUM(COALESCE(ra.REKAP_POIN, 0)) > 0
-    ) ranking"))
+    $sub = DB::table('REKAPPOIN_AWARD as ra')
+        ->select(
+            'ra.nim',
+            'vc.nama',
+            'vc.status',
+            DB::raw('SUM(NVL(ra.REKAP_POIN, 0)) AS total_rekap_poin'),
+            DB::raw('ROW_NUMBER() OVER (ORDER BY SUM(NVL(ra.REKAP_POIN, 0)) DESC) peringkat')
+        )
+        ->join('V_CIVITAS as vc', 'ra.nim', '=', 'vc.ID_CIVITAS')
+        ->groupBy('ra.nim', 'vc.nama', 'vc.status');
+
+    $query = DB::table(DB::raw("({$sub->toSql()}) ranking"))
+        ->mergeBindings($sub) // agar binding parameter dari subquery tetap dibawa
         ->where('nim', $id)
-        ->get();
-    return response()->json(['count' => $data]);
+        ->first();
+
+    if (!$query) {
+        return response()->json(['message' => 'Data tidak ditemukan'], 404);
+    }
+
+    return response()->json(['data' => $query]);
 });
+

@@ -21,7 +21,8 @@ class ControllerHistoriStatus extends Controller
             'id_aksara_dinamika'  => 'required|numeric',
             'status'              => 'required|string|max:100',
             'keterangan'          => 'required|string|max:255',
-            'tgl_status'          => 'required|date'
+            'tgl_status'          => 'required|date',
+            'user'                => 'required'
         ]);
 
         if ($validator->fails()) {
@@ -43,7 +44,8 @@ class ControllerHistoriStatus extends Controller
                     'paksara' => $request->id_aksara_dinamika,
                     'pstatus' => $request->status,
                     'pket'    => $request->keterangan,
-                    'ptgl'    => $request->tgl_status
+                    'ptgl'    => $request->tgl_status,
+                    'puser'  => $request->user
                 ]
             );
 
@@ -68,7 +70,8 @@ class ControllerHistoriStatus extends Controller
             'id_aksara_dinamika'  => 'required|numeric',
             'status'              => 'required|string|max:100',
             'keterangan'          => 'required|string|max:255',
-            'tgl_status'          => 'required|date'
+            'tgl_status'          => 'required|date',
+            'user'                => 'required'
         ]);
 
         if ($validator->fails()) {
@@ -90,7 +93,8 @@ class ControllerHistoriStatus extends Controller
                     'paksara' => $request->id_aksara_dinamika,
                     'pstatus' => $request->status,
                     'pket'    => $request->keterangan,
-                    'ptgl'    => $request->tgl_status
+                    'ptgl'    => $request->tgl_status,
+                    'puser'  => $request->user
                 ]
             );
 
