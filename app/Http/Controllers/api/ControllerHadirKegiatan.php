@@ -191,4 +191,27 @@ class ControllerHadirKegiatan extends Controller
             'data'    => $data
         ]);
     }
+    public function checkKegiatan(Request $request)
+    {
+        $civitas = $request->get('nim');
+        $idjadwal = $request->get('id_jadwal');
+
+        $sudahAbsen = DB::connection('oracle')
+            ->table('HADIRKEGIATAN_PUST')
+            ->where('ID_JADWAL', $idjadwal)
+            ->where('NIM', $civitas)
+            ->exists();
+
+        return response()->json(['exists' =>  $sudahAbsen]);
+    }
+    public function getLastIdHadir()
+    {
+        $lastId = DB::connection('oracle')
+            ->table('HADIRKEGIATAN_PUST')
+            ->max('ID_HADIR');
+
+        return response()->json([
+            'last_id' => $lastId
+        ]);
+    }
 }

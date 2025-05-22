@@ -240,6 +240,40 @@ class ControllerRekapPoin extends Controller
             'rekap_poin' => $rekap_poin
         ]);
     }
+    public function updateJumKunjungan($nim, $rekap_jumlah, $rekap_poin)
+    {
+        DB::table('REKAPPOIN_AWARD')
+            ->where('nim', $nim)
+            ->where('ID_KATEGORI', 2)
+            ->update([
+                'rekap_jumlah' => $rekap_jumlah,
+                'rekap_poin'   => $rekap_poin
+            ]);
+        return response()->json([
+            'success' => true,
+            'message' => 'Jumlah kunjungan berhasil diperbarui',
+            'nim'     => $nim,
+            'rekap_jumlah' => $rekap_jumlah,
+            'rekap_poin' => $rekap_poin
+        ]);
+    }
+    public function updateJumPinjaman($nim, $rekap_jumlah, $rekap_poin)
+    {
+        DB::table('REKAPPOIN_AWARD')
+            ->where('nim', $nim)
+            ->where('ID_KATEGORI', 1)
+            ->update([
+                'rekap_jumlah' => $rekap_jumlah,
+                'rekap_poin'   => $rekap_poin
+            ]);
+        return response()->json([
+            'success' => true,
+            'message' => 'Jumlah pinjaman berhasil diperbarui',
+            'nim'     => $nim,
+            'rekap_jumlah' => $rekap_jumlah,
+            'rekap_poin' => $rekap_poin
+        ]);
+    }
     public function getjumlahkegiatan($nim)
     {
         $dataKegiatan = DB::table('REKAPPOIN_AWARD')
@@ -260,6 +294,28 @@ class ControllerRekapPoin extends Controller
         return response()->json([
             'success' => true,
             'jumlah_aksara_dinamika' => $dataAksara
+        ]);
+    }
+    public function getjumlahkunjungan($nim)
+    {
+        $dataKunjungan = DB::table('REKAPPOIN_AWARD')
+            ->where('ID_KATEGORI', 2)
+            ->where('NIM', $nim)
+            ->value('REKAP_JUMLAH');
+        return response()->json([
+            'success' => true,
+            'jumlah_kunjungan' => $dataKunjungan
+        ]);
+    }
+    public function getjumlahpinjaman($nim)
+    {
+        $dataPinjaman = DB::table('REKAPPOIN_AWARD')
+            ->where('ID_KATEGORI', 1)
+            ->where('NIM', $nim)
+            ->value('REKAP_JUMLAH');
+        return response()->json([
+            'success' => true,
+            'jumlah_pinjaman' => $dataPinjaman
         ]);
     }
 }

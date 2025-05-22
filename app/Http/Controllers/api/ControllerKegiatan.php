@@ -176,4 +176,5 @@ class ControllerKegiatan extends Controller
             ], 500);
         }
     }
+    
 }

@@ -14,4 +14,18 @@ class ControllerBuku extends Controller
         $data = DB::table('v_buku_pust')->get();
         return response()->json($data);
     }
+    public function searchbuku(Request $request)
+    {
+        $keyword = $request->get('q'); // Tangkap keyword dari input user
+
+        $buku = DB::table('V_BUKU_PUST')
+            ->select('INDUK', 'JUDUL', 'PENGARANG1', 'PENGARANG2', 'PENGARANG3')
+            ->when($keyword, function ($query, $keyword) {
+                $query->where('INDUK', 'like', "%{$keyword}%")
+                    ->orWhere('JUDUL', 'like', "%{$keyword}%");
+            })
+            ->get();
+
+        return response()->json($buku);
+    }
 }

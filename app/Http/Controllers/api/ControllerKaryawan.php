@@ -14,4 +14,19 @@ class ControllerKaryawan extends Controller
         $data = DB::table('v_karyawan')->get();
         return response()->json($data);
     }
+    public function searchkaryawan(Request $request)
+    {
+        $keyword = $request->get('q'); // Tangkap keyword dari input user
+
+        $Karyawan = DB::table('V_KARYAWAN')
+            ->select('NIK', 'NAMA')
+            ->when($keyword, function ($query, $keyword) {
+                $query->where('NIK', 'like', "%{$keyword}%")
+                    ->orWhere('NAMA', 'like', "%{$keyword}%");
+            })
+            ->get();
+
+        return response()->json($Karyawan);
+    }
+
 }

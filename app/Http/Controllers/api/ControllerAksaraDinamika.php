@@ -17,7 +17,7 @@ class ControllerAksaraDinamika extends Controller
             ->join('v_buku_pust as vbp', 'ad.induk_buku', '=', 'vbp.induk')
             ->join('v_civitas as vc', 'ad.nim', '=', 'vc.id_civitas')
             ->select('*')
-        ->get();          
+            ->get();
         return response()->json($data);
     }
 
@@ -30,8 +30,9 @@ class ControllerAksaraDinamika extends Controller
             'id_buku' => 'required|string|max:50',
             'induk_buku' => 'required|string|max:50',
             'review' => 'required|string',
-            'dosen_usulan' => 'required|string|max:100',
-            'link_upload' => 'required|url|max:255'
+            'dosen_usulan',
+            'link_upload',
+            'tgl_review' => 'required|date',
         ]);
 
         if ($validator->fails()) {
@@ -52,7 +53,8 @@ class ControllerAksaraDinamika extends Controller
                         :pinduk, 
                         :preview, 
                         :pdosen, 
-                        :plink
+                        :plink,
+                        :ptgl
                     ); 
                 END;",
                 [
@@ -62,7 +64,8 @@ class ControllerAksaraDinamika extends Controller
                     'pinduk' => $request->induk_buku,
                     'preview' => $request->review,
                     'pdosen' => $request->dosen_usulan,
-                    'plink' => $request->link_upload
+                    'plink' => $request->link_upload,
+                    'ptgl' => $request->tgl_review
                 ]
             );
 
@@ -196,5 +199,80 @@ class ControllerAksaraDinamika extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+    public function getuserakasradinamika($nim)
+    {
+        $data = DB::table(DB::raw('
+        (
+            SELECT * FROM (
+                SELECT hs.*, 
+                       ROW_NUMBER() OVER (PARTITION BY ID_AKSARA_DINAMIKA ORDER BY ID_HISTORI_STATUS DESC) AS rn
+                FROM HISTORI_STATUS hs
+            ) sub
+            WHERE rn = 1
+        ) STATUS_TERBARU
+    '))
+            ->rightJoin(DB::raw('
+        (
+            SELECT * FROM (
+                SELECT ad.*, 
+                       ROW_NUMBER() OVER (PARTITION BY ID_AKSARA_DINAMIKA ORDER BY TGL_REVIEW DESC) AS rn
+                FROM AKSARA_DINAMIKA ad
+                WHERE REVIEW IS NOT NULL
+            ) sub
+            WHERE rn = 1
+        ) REVIEW_TERBARU
+    '), 'REVIEW_TERBARU.ID_AKSARA_DINAMIKA', '=', 'STATUS_TERBARU.ID_AKSARA_DINAMIKA')
+            ->join('PERIODE_AWARD AS pa', function ($join) {
+                $join->whereRaw('REVIEW_TERBARU.TGL_REVIEW BETWEEN pa.TGL_MULAI AND pa.TGL_SELESAI');
+            })
+            ->join('V_BUKU_PUST AS vbp', 'REVIEW_TERBARU.INDUK_BUKU', '=', 'vbp.INDUK')
+            ->where('REVIEW_TERBARU.NIM', $nim)
+            ->select([
+                'REVIEW_TERBARU.ID_AKSARA_DINAMIKA',
+                'vbp.JUDUL',
+                'REVIEW_TERBARU.TGL_REVIEW',
+                'pa.NAMA_PERIODE',
+                DB::raw("CASE WHEN STATUS_TERBARU.STATUS IS NULL THEN 'menunggu' ELSE STATUS_TERBARU.STATUS END AS STATUS")
+            ])
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $data
+        ]);
+    }
+    public function checkReview(Request $request)
+    {
+        $nim = $request->get('nim');
+        $induk = $request->get('induk_buku');
+
+        $exists = DB::connection('oracle')
+            ->table('AKSARA_DINAMIKA')
+            ->where('nim', $nim)
+            ->where('induk_buku', $induk)
+            ->exists();
+
+        return response()->json(['exists' => $exists]);
+    }
+    public function getLastId()
+    {
+        $lastId = DB::connection('oracle')
+            ->table('AKSARA_DINAMIKA')
+            ->max('ID_AKSARA_DINAMIKA');
+
+        return response()->json([
+            'last_id' => $lastId
+        ]);
+    }
+    public function getLastIdBuku()
+    {
+        $lastIdb = DB::connection('oracle')
+            ->table('AKSARA_DINAMIKA')
+            ->max('ID_BUKU');
+
+        return response()->json([
+            'last_idb' => $lastIdb
+        ]);
     }
 }

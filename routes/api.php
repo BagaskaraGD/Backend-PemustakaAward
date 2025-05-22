@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\ControllerPembobotan;
 use App\Http\Controllers\Api\ControllerPeriode;
 use App\Http\Controllers\Api\ControllerRangeKunjungan;
 use App\Http\Controllers\Api\ControllerRekapPoin;
+use App\Http\Controllers\Api\ControllerReward;
 use App\Http\Controllers\Api\ControllerSertifikat;
 use Illuminate\Support\Facades\DB;
 
@@ -30,7 +31,13 @@ Route::prefix('aksara-dinamika')->group(function () {
     // GET /aksara-dinamika - Read all data
     Route::get('/', [ControllerAksaraDinamika::class, 'readAksaraDinamika']);
 
-    // Route::get('/civitas', [ControllerAksaraDinamika::class, 'readCivitas']);
+    Route::get('/aksara-user/{nim}', [ControllerAksaraDinamika::class, 'getuserakasradinamika']);
+
+    Route::get('/check-review', [ControllerAksaraDinamika::class, 'checkReview']);
+
+    Route::get('/last-id', [ControllerAksaraDinamika::class, 'getLastId']);
+
+    Route::get('last-idbuku', [ControllerAksaraDinamika::class, 'getLastIdBuku']);
 
     // POST /aksara-dinamika - Insert new data
     Route::post('/', [ControllerAksaraDinamika::class, 'insAksaraDinamika']);
@@ -92,6 +99,10 @@ Route::prefix('hadir-kegiatan')->group(function () {
     // POST /aksara-dinamika - Insert new data
     Route::post('/', [ControllerHadirKegiatan::class, 'insHadirKegiatan']);
 
+    Route::get('/check-kegiatan', [ControllerHadirKegiatan::class, 'checkKegiatan']);
+
+    Route::get('/last-idhadir', [ControllerHadirKegiatan::class, 'getLastIdHadir']);
+
     // PUT /aksara-dinamika - Update data
     Route::put('/{id}', [ControllerHadirKegiatan::class, 'updHadirKegiatan']);
 
@@ -117,6 +128,20 @@ Route::prefix('periode')->group(function () {
     Route::delete('/{id}', [ControllerPeriode::class, 'delPeriode']);
 });
 
+Route::prefix('reward')->group(function () {
+    // GET /aksara-dinamika - Read all data
+    Route::get('/', [ControllerReward::class, 'readReward']);
+
+    // POST /aksara-dinamika - Insert new data
+    Route::post('/', [ControllerReward::class, 'insReward']);
+
+    // PUT /aksara-dinamika - Update data
+    Route::put('/{id}', [ControllerReward::class, 'updReward']);
+
+    // DELETE /aksara-dinamika/{id} - Delete data by ID
+    Route::delete('/{id}', [ControllerReward::class, 'delReward']);
+});
+
 Route::prefix('jenis-range')->group(function () {
     // GET /aksara-dinamika - Read all data
     Route::get('/', [ControllerJenisRange::class, 'readJenisRange']);
@@ -134,6 +159,8 @@ Route::prefix('jenis-range')->group(function () {
 Route::prefix('range-kunjungan')->group(function () {
     // GET /aksara-dinamika - Read all data
     Route::get('/', [ControllerRangeKunjungan::class, 'readRangeKunjungan']);
+
+    Route::get('/kunjungan', [ControllerRangeKunjungan::class, 'getRangeKunjungan']);
 
     // POST /aksara-dinamika - Insert new data
     Route::post('/', [ControllerRangeKunjungan::class, 'insRangeKunjungan']);
@@ -185,6 +212,8 @@ Route::prefix('histori-status')->group(function () {
     // GET /aksara-dinamika - Read all data
     Route::get('/', [ControllerHistoriStatus::class, 'readHistoriStatus']);
 
+    Route::get('/{nim}/{id}', [ControllerHistoriStatus::class, 'getHistoriStatus']);
+
     // POST /aksara-dinamika - Insert new data
     Route::post('/', [ControllerHistoriStatus::class, 'insHistoriStatus']);
 
@@ -205,6 +234,9 @@ Route::prefix('rekap-poin')->group(function () {
 
     Route::get('/jumlah/aksara/{nim}', [ControllerRekapPoin::class, 'getjumlahaksara']);
 
+    Route::get('/jumlah/kunjungan/{nim}', [ControllerRekapPoin::class, 'getjumlahkunjungan']);
+
+    Route::get('/jumlah/pinjaman/{nim}', [ControllerRekapPoin::class, 'getjumlahpinjaman']);
 
     // POST /aksara-dinamika - Insert new data
     Route::post('/', [ControllerRekapPoin::class, 'insRekapPoin']);
@@ -215,6 +247,10 @@ Route::prefix('rekap-poin')->group(function () {
     Route::put('/aksara/{nim}/{rekap_jumlah}/{rekap_poin}', [ControllerRekapPoin::class, 'updateJumAksara']);
 
     Route::put('/kegiatan/{nim}/{rekap_jumlah}/{rekap_poin}', [ControllerRekapPoin::class, 'updateJumKegiatan']);
+
+    Route::put('/kunjungan/{nim}/{rekap_jumlah}/{rekap_poin}', [ControllerRekapPoin::class, 'updateJumKunjungan']);
+
+    Route::put('/pinjaman/{nim}/{rekap_jumlah}/{rekap_poin}', [ControllerRekapPoin::class, 'updateJumPinjaman']);
 
     // DELETE /aksara-dinamika/{id} - Delete data by ID
     Route::delete('/{id}', [ControllerRekapPoin::class, 'delRekapPoin']);
@@ -256,11 +292,16 @@ Route::prefix('civitas')->group(function () {
 Route::prefix('buku')->group(function () {
 
     Route::get('/', [ControllerBuku::class, 'readBuku']);
+
+
+    Route::get('/search', [ControllerBuku::class, 'searchbuku']);
 });
 
 Route::prefix('karyawan')->group(function () {
 
     Route::get('/', [ControllerKaryawan::class, 'readKaryawan']);
+
+    Route::get('/search', [ControllerKaryawan::class, 'searchkaryawan']);
 });
 
 Route::get('/challenge-count/{id}', function ($id) {
@@ -280,6 +321,23 @@ Route::get('/kegiatan-count/{nim}', function ($nim) {
 
     return response()->json(['count' => $count]);
 });
+
+Route::get('/kunjungan-count/{nim}', function ($nim) {
+    $count = DB::table('V_KUNJUNGAN_PERPUS')
+        ->where('NIM', $nim)
+        ->count();
+
+    return response()->json(['count' => $count]);
+});
+
+Route::get('/pinjaman-count/{nim}', function ($nim) {
+    $count = DB::table('V_HIS_BUKU')
+        ->where('NIM', $nim)
+        ->count();
+
+    return response()->json(['count' => $count]);
+});
+
 
 Route::get('/myrank/{id}', function ($id) {
     $sub = DB::table('REKAPPOIN_AWARD as ra')
@@ -304,4 +362,3 @@ Route::get('/myrank/{id}', function ($id) {
 
     return response()->json(['data' => $query]);
 });
-
