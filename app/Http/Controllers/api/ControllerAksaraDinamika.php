@@ -202,46 +202,60 @@ class ControllerAksaraDinamika extends Controller
     }
     public function getuserakasradinamika($nim)
     {
-        $data = DB::table(DB::raw('
-        (
-            SELECT * FROM (
-                SELECT hs.*, 
-                       ROW_NUMBER() OVER (PARTITION BY ID_AKSARA_DINAMIKA ORDER BY ID_HISTORI_STATUS DESC) AS rn
-                FROM HISTORI_STATUS hs
-            ) sub
-            WHERE rn = 1
-        ) STATUS_TERBARU
-    '))
-            ->rightJoin(DB::raw('
-        (
-            SELECT * FROM (
-                SELECT ad.*, 
-                       ROW_NUMBER() OVER (PARTITION BY ID_AKSARA_DINAMIKA ORDER BY TGL_REVIEW DESC) AS rn
+        $data = DB::select("
+        SELECT
+            ID_AKSARA_DINAMIKA,
+            INDUK_BUKU,
+            JUDUL,
+            TGL_REVIEW,
+            NAMA_PERIODE,
+            STATUS
+        FROM (
+            WITH StatusTerbaru AS (
+                SELECT
+                    ID_AKSARA_DINAMIKA,
+                    STATUS,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY ID_AKSARA_DINAMIKA
+                        ORDER BY TGL_STATUS DESC
+                    ) AS rn
+                FROM HISTORI_STATUS
+            ),
+            DataUnikPerInduk AS (
+                SELECT
+                    ad.ID_AKSARA_DINAMIKA,
+                    ad.INDUK_BUKU,
+                    vbp.JUDUL,
+                    ad.TGL_REVIEW,
+                    pa.NAMA_PERIODE,
+                    COALESCE(st.STATUS, 'menunggu') AS STATUS,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY ad.INDUK_BUKU
+                        ORDER BY ad.TGL_REVIEW DESC
+                    ) AS rn
                 FROM AKSARA_DINAMIKA ad
-                WHERE REVIEW IS NOT NULL
-            ) sub
+                JOIN PERIODE_AWARD pa 
+                    ON ad.TGL_REVIEW BETWEEN pa.TGL_MULAI AND pa.TGL_SELESAI
+                    AND ad.REVIEW IS NOT NULL
+                JOIN (
+                    SELECT DISTINCT INDUK, JUDUL FROM V_BUKU_PUST
+                ) vbp ON ad.INDUK_BUKU = vbp.INDUK
+                LEFT JOIN StatusTerbaru st 
+                    ON ad.ID_AKSARA_DINAMIKA = st.ID_AKSARA_DINAMIKA
+                    AND st.rn = 1
+                WHERE ad.NIM = ?
+            )
+            SELECT * FROM DataUnikPerInduk
             WHERE rn = 1
-        ) REVIEW_TERBARU
-    '), 'REVIEW_TERBARU.ID_AKSARA_DINAMIKA', '=', 'STATUS_TERBARU.ID_AKSARA_DINAMIKA')
-            ->join('PERIODE_AWARD AS pa', function ($join) {
-                $join->whereRaw('REVIEW_TERBARU.TGL_REVIEW BETWEEN pa.TGL_MULAI AND pa.TGL_SELESAI');
-            })
-            ->join('V_BUKU_PUST AS vbp', 'REVIEW_TERBARU.INDUK_BUKU', '=', 'vbp.INDUK')
-            ->where('REVIEW_TERBARU.NIM', $nim)
-            ->select([
-                'REVIEW_TERBARU.ID_AKSARA_DINAMIKA',
-                'vbp.JUDUL',
-                'REVIEW_TERBARU.TGL_REVIEW',
-                'pa.NAMA_PERIODE',
-                DB::raw("CASE WHEN STATUS_TERBARU.STATUS IS NULL THEN 'menunggu' ELSE STATUS_TERBARU.STATUS END AS STATUS")
-            ])
-            ->get();
+        ) ORDER BY ID_AKSARA_DINAMIKA
+    ", [$nim]);
 
         return response()->json([
             'success' => true,
-            'data' => $data
+            'data'    => $data
         ]);
     }
+
     public function checkReview(Request $request)
     {
         $nim = $request->get('nim');

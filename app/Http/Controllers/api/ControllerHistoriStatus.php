@@ -219,8 +219,9 @@ class ControllerHistoriStatus extends Controller
         $data = DB::table('HISTORI_STATUS as hs')
             ->join('AKSARA_DINAMIKA as ad', 'hs.ID_AKSARA_DINAMIKA', '=', 'ad.ID_AKSARA_DINAMIKA')
             ->where('ad.NIM', $nim)
-            ->where('hs.ID_AKSARA_DINAMIKA', $id)
+            ->where('ad.INDUK_BUKU', $id)
             ->select('*')
+            ->orderBy('hs.tgl_status', 'desc')
             ->get();
         return response()->json([
             'success' => true,

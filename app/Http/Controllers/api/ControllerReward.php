@@ -24,7 +24,7 @@ class ControllerReward extends Controller
             'idperiode'       => 'required|numeric',
             'level'  => 'required|numeric',
             'bentuk' => 'required|string|max:50',
-            'slot' => 'required|number'
+            'slot' => 'required|numeric'
         ]);
 
         if ($validator->fails()) {
@@ -75,7 +75,7 @@ class ControllerReward extends Controller
             'idperiode'       => 'required|numeric',
             'level'  => 'required|numeric',
             'bentuk' => 'required|string|max:50',
-            'slot' => 'required|number'
+            'slot' => 'required|numeric'
         ]);
 
         if ($validator->fails()) {
