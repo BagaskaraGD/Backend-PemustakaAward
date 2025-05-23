@@ -23,6 +23,7 @@ class ControllerRangeKunjungan extends Controller
             'id_periode'     => 'required|numeric',
             'range_awal'     => 'required|numeric',
             'range_akhir'    => 'required|numeric',
+            'bobot'          => 'required|numeric',  
         ]);
 
         if ($validator->fails()) {
@@ -41,7 +42,8 @@ class ControllerRangeKunjungan extends Controller
                     :pjenis, 
                     :pperiode, 
                     :pawal, 
-                    :pakhir
+                    :pakhir,
+                    :pbobot
                 ); 
             END;",
                 [
@@ -49,7 +51,8 @@ class ControllerRangeKunjungan extends Controller
                     'pjenis'   => $request->id_jenis_range,
                     'pperiode' => $request->id_periode,
                     'pawal'    => $request->range_awal,
-                    'pakhir'   => $request->range_akhir
+                    'pakhir'   => $request->range_akhir,
+                    'pbobot'   => $request->bobot
                 ]
             );
 
@@ -75,6 +78,7 @@ class ControllerRangeKunjungan extends Controller
             'id_periode'     => 'required|numeric',
             'range_awal'     => 'required|numeric',
             'range_akhir'    => 'required|numeric',
+            'bobot'          => 'required|numeric'
         ]);
 
         if ($validator->fails()) {
@@ -104,7 +108,8 @@ class ControllerRangeKunjungan extends Controller
                 :pjenis, 
                 :pperiode, 
                 :pawal, 
-                :pakhir
+                :pakhir,
+                :pbobot
             ); 
         END;",
                 [
@@ -112,7 +117,8 @@ class ControllerRangeKunjungan extends Controller
                     'pjenis'   => $request->id_jenis_range,
                     'pperiode' => $request->id_periode,
                     'pawal'    => $request->range_awal,
-                    'pakhir'   => $request->range_akhir
+                    'pakhir'   => $request->range_akhir,
+                    'pbobot'   => $request->bobot
                 ]
             );
 
