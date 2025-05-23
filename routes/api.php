@@ -162,6 +162,8 @@ Route::prefix('range-kunjungan')->group(function () {
 
     Route::get('/kunjungan', [ControllerRangeKunjungan::class, 'getRangeKunjungan']);
 
+    Route::get('/pinjaman', [ControllerRangeKunjungan::class, 'getRangePinjaman']);
+
     // POST /aksara-dinamika - Insert new data
     Route::post('/', [ControllerRangeKunjungan::class, 'insRangeKunjungan']);
 

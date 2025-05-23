@@ -193,4 +193,18 @@ class ControllerRangeKunjungan extends Controller
             200
         );
     }
+    public function getrangePinjaman()
+    {
+        $data = DB::table('RANGEKUNJUNGAN_AWARD')
+            ->where('ID_JENIS_RANGE', '2')
+            ->orderBy('ID_RANGE_KUNJUNGAN', 'asc')
+            ->get();
+        return response()->json(
+            [
+                'success' => true,
+                'data'    => $data
+            ],
+            200
+        );
+    }
 }
