@@ -14,6 +14,7 @@ class ControllerKegiatan extends Controller
         $data = DB::table('kegiatan_pust')->get();
         return response()->json($data);
     }
+    
     public function insKegiatan(Request $request)
     {
         // Validasi input

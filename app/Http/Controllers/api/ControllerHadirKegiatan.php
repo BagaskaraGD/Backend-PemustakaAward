@@ -177,6 +177,7 @@ class ControllerHadirKegiatan extends Controller
             ->join('PEMATERIKEGIATAN_PUST as pp', 'jkp.ID_PEMATERI', '=', 'pp.ID_PEMATERI')
             ->join('HADIRKEGIATAN_PUST as hp', 'jkp.ID_JADWAL', '=', 'hp.ID_JADWAL')
             ->select(
+                'kp.ID_KEGIATAN',
                 'kp.JUDUL_KEGIATAN',
                 'jkp.TGL_KEGIATAN',
                 DB::raw("REPLACE(TO_CHAR(jkp.WAKTU_MULAI, 'HH24:MI'), ':', '.') || ' - ' || REPLACE(TO_CHAR(jkp.WAKTU_SELESAI, 'HH24:MI'), ':', '.') AS JAM_KEGIATAN"),
@@ -190,6 +191,16 @@ class ControllerHadirKegiatan extends Controller
             'success' => true,
             'data'    => $data
         ]);
+    }
+    public function readMyKegiatan($nim)
+    {
+        $data = DB::table('kegiatan_pust')
+            ->join('hadirkegiatan_pust', 'kegiatan_pust.id_kegiatan', '=', 'hadirkegiatan_pust.id_kegiatan')
+            ->where('hadirkegiatan_pust.nim', $nim)
+            ->select('kegiatan_pust.*')
+            ->get();
+
+        return response()->json($data);
     }
     public function checkKegiatan(Request $request)
     {

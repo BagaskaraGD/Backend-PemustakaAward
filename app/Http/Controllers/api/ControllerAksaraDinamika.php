@@ -289,4 +289,39 @@ class ControllerAksaraDinamika extends Controller
             'last_idb' => $lastIdb
         ]);
     }
+    public function getAksaraDinamikaForEdit($id, $induk_buku, $nim)
+    {
+        $result = DB::table('AKSARA_DINAMIKA as ad')
+            ->select(
+                'ad.ID_AKSARA_DINAMIKA',
+                'ad.NIM',
+                'ad.ID_BUKU',
+                'ad.INDUK_BUKU',
+                'ad.REVIEW',
+                'ad.DOSEN_USULAN',
+                'ad.LINK_UPLOAD',
+                'ad.TGL_REVIEW',
+                'vbp.JUDUL',
+                'vbp.TH_TERBIT',
+                // Kolom PENGARANG_ALL menggunakan DB::raw() untuk ekspresi SQL kompleks
+                DB::raw("TRIM(
+                    NVL(vbp.PENGARANG1, '') ||
+                    CASE WHEN vbp.PENGARANG1 IS NOT NULL AND (vbp.PENGARANG2 IS NOT NULL OR vbp.PENGARANG3 IS NOT NULL) THEN ', ' ELSE '' END ||
+                    NVL(vbp.PENGARANG2, '') ||
+                    CASE WHEN vbp.PENGARANG2 IS NOT NULL AND vbp.PENGARANG3 IS NOT NULL THEN ', ' ELSE '' END ||
+                    NVL(vbp.PENGARANG3, '')
+                ) AS PENGARANG_ALL")
+            )
+            ->leftJoin('HISTORI_STATUS as hs', 'ad.ID_AKSARA_DINAMIKA', '=', 'hs.ID_AKSARA_DINAMIKA')
+            ->leftJoin('V_BUKU_PUST as vbp', 'vbp.INDUK', '=', 'ad.INDUK_BUKU')
+            ->where('ad.NIM', $nim)
+            ->where('ad.INDUK_BUKU', $induk_buku)
+            ->where('ad.ID_AKSARA_DINAMIKA', $id)
+            ->get();
+        
+        return response()->json([
+            'success' => true,
+            'data'    => $result
+        ]);
+    }
 }

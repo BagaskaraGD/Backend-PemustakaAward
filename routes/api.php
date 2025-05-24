@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\ControllerKegiatan;
 use App\Http\Controllers\Api\ControllerPemateriKegiatan;
 use App\Http\Controllers\Api\ControllerPembobotan;
 use App\Http\Controllers\Api\ControllerPeriode;
+use App\Http\Controllers\api\ControllerPerusahaan;
 use App\Http\Controllers\Api\ControllerRangeKunjungan;
 use App\Http\Controllers\Api\ControllerRekapPoin;
 use App\Http\Controllers\Api\ControllerReward;
@@ -38,6 +39,8 @@ Route::prefix('aksara-dinamika')->group(function () {
     Route::get('/last-id', [ControllerAksaraDinamika::class, 'getLastId']);
 
     Route::get('last-idbuku', [ControllerAksaraDinamika::class, 'getLastIdBuku']);
+
+    Route::get('/detail-for-edit/{id}/{induk_buku}/{nim}', [ControllerAksaraDinamika::class, 'getAksaraDinamikaForEdit']);
 
     // POST /aksara-dinamika - Insert new data
     Route::post('/', [ControllerAksaraDinamika::class, 'insAksaraDinamika']);
@@ -305,6 +308,11 @@ Route::prefix('karyawan')->group(function () {
 
     Route::get('/search', [ControllerKaryawan::class, 'searchkaryawan']);
 });
+Route::prefix('perusahaan')->group(function () {
+
+    Route::get('/', [ControllerPerusahaan::class, 'readPerusahaan']);
+});
+
 
 Route::get('/challenge-count/{id}', function ($id) {
     $count = DB::table('HISTORI_STATUS as hs')
