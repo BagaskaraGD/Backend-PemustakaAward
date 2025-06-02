@@ -34,10 +34,11 @@ class ControllerRekapPoin extends Controller
                 'vc.nama',
                 'ra.nim',
                 'vc.status',
+                'vc.jkel',
                 DB::raw('SUM(COALESCE(ra.REKAP_POIN, 0)) as total_rekap_poin')
             )
             ->where('vc.status', 'MHS')
-            ->groupBy('ra.nim', 'vc.nama', 'vc.status')
+            ->groupBy('ra.nim', 'vc.nama', 'vc.status', 'vc.jkel')
             ->orderByDesc('total_rekap_poin')
             ->get();
 
@@ -47,10 +48,18 @@ class ControllerRekapPoin extends Controller
     {
         $data = DB::table('REKAPPOIN_AWARD as ra')
             ->join('v_civitas as vc', 'ra.NIM', '=', 'vc.ID_CIVITAS')
-            ->select('vc.nama', 'ra.nim', 'vc.status', 'ra.nilai')
-            ->where('vc.status', 'DOSEN')
-            ->orderByDesc('ra.nilai')
+            ->select(
+                'vc.nama',
+                'ra.nim',
+                'vc.status',
+                'vc.jkel',
+                DB::raw('SUM(COALESCE(ra.REKAP_POIN, 0)) as total_rekap_poin')
+            )
+            ->wherein('vc.status',[ 'TENDIK', 'DOSEN'])
+            ->groupBy('ra.nim', 'vc.nama', 'vc.status','vc.jkel')
+            ->orderByDesc('total_rekap_poin')
             ->get();
+
         return response()->json($data);
     }
     public function readtopleaderboardMHS()
@@ -69,9 +78,12 @@ class ControllerRekapPoin extends Controller
     {
         $data = DB::table('REKAPPOIN_AWARD as ra')
             ->join('v_civitas as vc', 'ra.NIM', '=', 'vc.ID_CIVITAS')
-            ->select('max(nim)', 'max(nilai)')
-            ->where('vc.status', 'DOSEN')
+            ->select('vc.nama', 'ra.nim', 'vc.status', 'ra.nilai')
+            ->wherein('vc.status', [ 'TENDIK', 'DOSEN'])
+            ->orderByDesc('ra.nilai')
+            ->limit(1)
             ->get();
+
         return response()->json($data);
     }
     public function insRekapPoin(Request $request)

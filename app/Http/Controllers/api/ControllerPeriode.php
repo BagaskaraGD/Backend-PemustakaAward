@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Carbon\Carbon; 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
@@ -16,7 +17,27 @@ class ControllerPeriode extends Controller
 
         return response()->json($data);
     }
+    public function getPeriodeAktif() // Tidak perlu Request $request jika tidak dipakai
+    {
+        $currentDate = Carbon::now()->toDateString();
 
+        // Mengambil dari tabel 'periode_award' (berdasarkan method readPeriode Anda)
+        $periodeAktif = DB::table('periode_award')
+            ->where('TGL_MULAI', '<=', $currentDate)
+            ->where('TGL_SELESAI', '>=', $currentDate)
+            // Anda mungkin punya kolom status seperti 'STATUS_PERIODE' = 'AKTIF'
+            // ->where('STATUS_PERIODE', 'AKTIF') 
+            ->orderBy('ID_PERIODE', 'desc') // Mengambil yang terbaru jika ada overlap
+            ->first(); // Hanya mengambil satu periode aktif
+
+        if ($periodeAktif) {
+            // Mengembalikan response yang konsisten dengan ekspektasi RekapPoinService:
+            // {'data': [{'ID_PERIODE': xxx, ...}]}
+            return response()->json(['data' => [$periodeAktif]]);
+        } else {
+            return response()->json(['data' => [], 'message' => 'Tidak ada periode aktif ditemukan saat ini.'], 404);
+        }
+    }
     public function insPeriode(Request $request)
     {
         // Validasi input
