@@ -314,7 +314,8 @@ Route::prefix('karyawan')->group(function () {
 Route::prefix('perusahaan')->group(function () {
 
     Route::get('/', [ControllerPerusahaan::class, 'readPerusahaan']);
-    Route::post('/', [ControllerPerusahaan::class, 'insPerusahaan'])->name('api.perusahaan.create'); // Named for easier URL generation if needed
+    Route::post('/', [ControllerPerusahaan::class, 'insPerusahaan'])->name('api.perusahaan.create'); 
+    Route::delete('/{id}', [ControllerPerusahaan::class, 'delPerusahaan']);
 });
 Route::prefix('penerima-reward')->group(function () {
     Route::get('/', [ControllerPenerimaReward::class, 'readPenerimaReward']);
