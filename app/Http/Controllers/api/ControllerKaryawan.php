@@ -20,6 +20,7 @@ class ControllerKaryawan extends Controller
 
         $Karyawan = DB::table('V_KARYAWAN')
             ->select('NIK', 'NAMA')
+            ->where('STATUS', 'A')
             ->when($keyword, function ($query, $keyword) {
                 $query->where('NIK', 'like', "%{$keyword}%")
                     ->orWhere('NAMA', 'like', "%{$keyword}%");

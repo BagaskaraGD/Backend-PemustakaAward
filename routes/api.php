@@ -314,14 +314,13 @@ Route::prefix('karyawan')->group(function () {
 Route::prefix('perusahaan')->group(function () {
 
     Route::get('/', [ControllerPerusahaan::class, 'readPerusahaan']);
+    Route::post('/', [ControllerPerusahaan::class, 'insPerusahaan'])->name('api.perusahaan.create'); // Named for easier URL generation if needed
 });
 Route::prefix('penerima-reward')->group(function () {
     Route::get('/', [ControllerPenerimaReward::class, 'readPenerimaReward']);
-
-    Route::post('/', [ControllerPenerimaReward::class, 'insPenerimaReward']);
-
+    Route::post('/', [ControllerPenerimaReward::class, 'insPenerimaReward'])->name('api.reward.claim'); // Named for easier URL generation if needed
     Route::delete('/{id}', [ControllerPenerimaReward::class, 'delPenerimaReward']);
-
+    Route::get('/rewards/active', [ControllerPenerimaReward::class, 'getCurrentActiveRewards'])->name('api.rewards.active');
 });
 
 
@@ -361,24 +360,76 @@ Route::get('/pinjaman-count/{nim}', function ($nim) {
 
 
 Route::get('/myrank/mhs/{id}', function ($id) {
-    $rankedStudents = DB::table('REKAPPOIN_AWARD as ra')
-        ->join('v_civitas as vc', 'ra.NIM', '=', 'vc.ID_CIVITAS')
-        ->select(
-            'vc.nama',
-            'ra.nim',
-            'vc.status',
-            'vc.jkel',
-            DB::raw('SUM(NVL(ra.REKAP_POIN, 0)) total_rekap_poin'),
-            DB::raw('ROW_NUMBER() OVER (ORDER BY SUM(NVL(ra.REKAP_POIN, 0)) DESC) peringkat')
-        )
-        ->where('vc.status', 'MHS')
-        ->groupBy('ra.nim', 'vc.nama', 'vc.status', 'vc.jkel');
+    // Langkah 1: Dapatkan ID periode yang sedang aktif
+    $activePeriode = DB::table('PERIODE_AWARD')
+        ->whereRaw('CURRENT_DATE BETWEEN TGL_MULAI AND TGL_SELESAI')
+        ->select('id_periode') // Menggunakan 'id_periode' (lowercase) sesuai perbaikan sebelumnya
+        ->first();
 
-    $data = DB::table(DB::raw("({$rankedStudents->toSql()}) ranked_students"))
-        ->mergeBindings($rankedStudents)
+    if (!$activePeriode) {
+        // Jika tidak ada periode aktif, kembalikan null atau pesan error yang sesuai
+        return response()->json(['data' => null, 'message' => 'Tidak ada periode aktif yang ditemukan.'], 404);
+    }
+    $activePeriodeId = $activePeriode->id_periode;
+
+    // Langkah 2: Gunakan ControllerRekapPoin untuk mendapatkan query builder dasar
+    // Laravel dapat me-resolve instance controller menggunakan helper app()
+    $rekapPoinController = app(ControllerRekapPoin::class);
+
+    // Dapatkan query builder dasar yang sudah melakukan select, join, where untuk periode aktif, dan groupBy
+    $baseQueryBuilder = $rekapPoinController->getRankedMhsBaseBuilder($activePeriodeId);
+    // Kolom yang dihasilkan oleh $baseQueryBuilder:
+    // nama, nim, status, jkel, total_rekap_poin,
+    // jumlah_aksara_dinamika, jumlah_kegiatan, jumlah_kunjungan, jumlah_pinjaman
+
+    // Langkah 3: Buat subquery untuk menambahkan ROW_NUMBER() (peringkat)
+    // ROW_NUMBER() akan dihitung berdasarkan hasil dari $baseQueryBuilder (yang dialiaskan sebagai 'sub')
+    $rankedStudentsSubQuery = DB::query()
+        ->fromSub($baseQueryBuilder, 'sub') // 'sub' adalah alias untuk hasil dari $baseQueryBuilder
+        ->select(
+            'sub.nama',
+            'sub.nim',
+            'sub.status',
+            'sub.jkel',
+            'sub.total_rekap_poin',
+            // Hitung peringkat berdasarkan urutan yang sama dengan readleaderboardMHS
+            DB::raw('ROW_NUMBER() OVER (ORDER BY 
+                        sub.total_rekap_poin DESC, 
+                        sub.jumlah_aksara_dinamika DESC, 
+                        sub.jumlah_kegiatan DESC, 
+                        sub.jumlah_kunjungan DESC, 
+                        sub.jumlah_pinjaman DESC, 
+                        sub.nim ASC
+                    ) as peringkat')
+        );
+
+    // Langkah 4: Ambil data peringkat untuk mahasiswa dengan $id tertentu
+    // Kita membuat query lagi dari hasil $rankedStudentsSubQuery (yang dialiaskan sebagai 'ranked_list')
+    $data = DB::query()
+        ->fromSub($rankedStudentsSubQuery, 'ranked_list') // 'ranked_list' adalah alias untuk hasil subquery sebelumnya
         ->select('nama', 'nim', 'status', 'jkel', 'total_rekap_poin', 'peringkat')
         ->where('nim', $id)
         ->first();
+
+    // Jika data mahasiswa tidak ditemukan di peringkat (misalnya, belum memiliki poin)
+    if (!$data) {
+        // Anda bisa mencoba mengambil data mahasiswa dari v_civitas sebagai fallback
+        // atau mengembalikan null/pesan khusus.
+        // Contoh fallback:
+        $civitasData = DB::table('v_civitas')->where('ID_CIVITAS', $id)->where('status', 'MHS')->first();
+        if ($civitasData) {
+            $data = (object)[
+                'nama' => $civitasData->nama,
+                'nim' => $civitasData->id_civitas, // atau $id
+                'status' => $civitasData->status,
+                'jkel' => $civitasData->jkel,
+                'total_rekap_poin' => 0,
+                'peringkat' => null // Atau 'Tidak Terperingkat'
+            ];
+        } else {
+            return response()->json(['data' => null, 'message' => 'Mahasiswa tidak ditemukan.'], 404);
+        }
+    }
 
     return response()->json(['data' => $data]);
 });
@@ -394,7 +445,7 @@ Route::get('/myrank/dosen/{id}', function ($id) {
             DB::raw('SUM(NVL(ra.REKAP_POIN, 0)) total_rekap_poin'),
             DB::raw('ROW_NUMBER() OVER (ORDER BY SUM(NVL(ra.REKAP_POIN, 0)) DESC) peringkat')
         )
-        ->wherein('vc.status', ['DOSEN','TENDIK'])
+        ->wherein('vc.status', ['DOSEN', 'TENDIK'])
         ->groupBy('ra.nim', 'vc.nama', 'vc.status', 'vc.jkel');
 
     $data = DB::table(DB::raw("({$rankedStudents->toSql()}) ranked_students"))
