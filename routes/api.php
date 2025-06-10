@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\ControllerJenisRange;
 use App\Http\Controllers\Api\ControllerKaryawan;
 use App\Http\Controllers\Api\ControllerKategoriNilai;
 use App\Http\Controllers\Api\ControllerKegiatan;
+use App\Http\Controllers\api\ControllerKota;
 use App\Http\Controllers\Api\ControllerPemateriKegiatan;
 use App\Http\Controllers\Api\ControllerPembobotan;
 use App\Http\Controllers\Api\ControllerPenerimaReward;
@@ -322,6 +323,10 @@ Route::prefix('penerima-reward')->group(function () {
     Route::post('/', [ControllerPenerimaReward::class, 'insPenerimaReward'])->name('api.reward.claim'); // Named for easier URL generation if needed
     Route::delete('/{id}', [ControllerPenerimaReward::class, 'delPenerimaReward']);
     Route::get('/rewards/active', [ControllerPenerimaReward::class, 'getCurrentActiveRewards'])->name('api.rewards.active');
+});
+Route::prefix('kota')->group(function () {
+    Route::get('/', [ControllerKota::class, 'readKota']);
+    Route::post('/', [ControllerKota::class, 'insKota'])->name('api.kota.create'); // Named for easier URL generation if needed
 });
 
 
