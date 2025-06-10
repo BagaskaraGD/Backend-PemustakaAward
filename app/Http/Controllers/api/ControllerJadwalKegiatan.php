@@ -10,24 +10,24 @@ use Carbon\Carbon;
 
 class ControllerJadwalKegiatan extends Controller
 {
-    public function readJadwalKegiatan()
-    {
-        $data = DB::table('jadwal_kegiatan_pust')->get();
-        return response()->json($data);
-    }
     public function insJadwalKegiatan(Request $request)
     {
-        // Validasi input
+        // Validasi input dengan logika kondisional
         $validator = Validator::make($request->all(), [
             'id' => 'required|numeric',
-            'id_pemateri' => 'required|numeric',
+            // 'id_pemateri' tidak lagi divalidasi secara langsung
             'id_kegiatan' => 'required|numeric',
             'tgl_kegiatan' => 'required|date_format:Y-m-d',
             'waktu_mulai' => 'required|date_format:Y-m-d H:i:s',
             'waktu_selesai' => 'required|date_format:Y-m-d H:i:s',
             'bobot' => 'required|numeric',
             'keterangan' => 'nullable|string|max:255',
-            'kode_random' => 'required|string|max:255'
+            'kode_random' => 'required|string|max:255',
+
+            // Validasi baru untuk pemateri
+            'jenis_pemateri' => 'required|string|in:internal,eksternal',
+            'id_pemateri_internal' => 'nullable|required_if:jenis_pemateri,internal|string', // Asumsi ID civitas bisa berupa string (NIM/NIK)
+            'id_pemateri_eksternal' => 'nullable|required_if:jenis_pemateri,eksternal|numeric',
         ]);
 
         if ($validator->fails()) {
@@ -37,12 +37,20 @@ class ControllerJadwalKegiatan extends Controller
             ], 422);
         }
 
+        // Tentukan ID pemateri yang akan digunakan berdasarkan jenisnya
+        $idPemateri = null;
+        if ($request->jenis_pemateri == 'internal') {
+            $idPemateri = $request->id_pemateri_internal;
+        } elseif ($request->jenis_pemateri == 'eksternal') {
+            $idPemateri = $request->id_pemateri_eksternal;
+        }
+
         $tgl_kegiatan = Carbon::parse($request->tgl_kegiatan)->format('Y-m-d');
         $waktu_mulai = Carbon::parse($request->waktu_mulai)->format('Y-m-d H:i:s');
         $waktu_selesai = Carbon::parse($request->waktu_selesai)->format('Y-m-d H:i:s');
 
         try {
-            // Eksekusi stored procedure
+            // Eksekusi stored procedure dengan ID pemateri yang sudah ditentukan
             DB::connection('oracle')->statement(
                 "BEGIN 
                 BOBBY21.INS_PUSTAWARD_JADWALKEG(
@@ -59,7 +67,7 @@ class ControllerJadwalKegiatan extends Controller
             END;",
                 [
                     'pid' => $request->id,  // ID_JADWAL
-                    'ppemateri' => $request->id_pemateri,  // ID_PEMATERI
+                    'ppemateri' => $idPemateri,  // <-- Gunakan variabel $idPemateri
                     'pkegiatan' => $request->id_kegiatan,  // ID_KEGIATAN
                     'ptgl' => $tgl_kegiatan,  // TGL_KEGIATAN
                     'pmulai' => $waktu_mulai,  // WAKTU_MULAI
