@@ -63,15 +63,39 @@ class ControllerRekapPoin extends Controller
         // Karena metode ini ada di dalam kelas yang sama, kita panggil dengan $this
         $queryBuilder = $this->getRankedMhsBaseBuilder($activePeriodeId);
 
-        // Terapkan aturan pengurutan akhir
-        $data = $queryBuilder
-            ->orderBy('total_rekap_poin', 'DESC')
-            ->orderBy('jumlah_aksara_dinamika', 'DESC')
-            ->orderBy('jumlah_kegiatan', 'DESC')
-            ->orderBy('jumlah_kunjungan', 'DESC')
-            ->orderBy('jumlah_pinjaman', 'DESC')
-            ->orderBy('nim', 'ASC') // Setelah groupBy, 'ra.nim' akan menjadi 'nim'
+        $bobot = DB::table('Pembobotan_award')
+            ->wherein('id_jenis_bobot', [9, 10, 11, 12])
+            ->where('id_periode', $activePeriodeId)
+            ->orderBy('NILAI', 'ASC')
             ->get();
+        // Buat pemetaan dari ID Jenis Bobot ke nama kolom di query utama.
+        // Ini membuat kode lebih mudah dibaca dan dipelihara.
+        $columnMap = [
+            9  => 'jumlah_aksara_dinamika',
+            10 => 'jumlah_kegiatan',
+            11 => 'jumlah_kunjungan',
+            12 => 'jumlah_pinjaman',
+        ];
+
+        // Langkah 4: Terapkan aturan pengurutan akhir secara dinamis
+
+        // Aturan pertama yang paling utama tetap 'total_rekap_poin'
+        $queryBuilder->orderBy('total_rekap_poin', 'DESC');
+
+        // Terapkan pengurutan dinamis berdasarkan bobot prioritas yang sudah diurutkan
+        foreach ($bobot as $bobot) {
+            // Periksa apakah id_jenis_bobot ada di dalam map kita
+            if (isset($columnMap[$bobot->id_jenis_bobot])) {
+                $columnName = $columnMap[$bobot->id_jenis_bobot];
+                $queryBuilder->orderBy($columnName, 'DESC');
+            }
+        }
+
+        // Terapkan aturan terakhir sebagai tie-breaker (jika semua nilai di atas sama)
+        $queryBuilder->orderBy('nim', 'ASC'); // Setelah groupBy, 'ra.nim' akan menjadi 'nim'
+
+        // Ambil data hasil akhir
+        $data = $queryBuilder->get();
 
         return response()->json($data);
     }
@@ -319,9 +343,11 @@ class ControllerRekapPoin extends Controller
     }
     public function getjumlahkegiatan($nim)
     {
-        $dataKegiatan = DB::table('REKAPPOIN_AWARD')
+        $dataKegiatan = DB::table('REKAPPOIN_AWARD as r')
+            ->join('PERIODE_AWARD as p', 'p.ID_PERIODE', '=', 'r.ID_PERIODE')
             ->where('ID_KATEGORI', 3)
             ->where('NIM', $nim)
+            ->whereRaw('TGL_REKAP BETWEEN TGL_MULAI AND TGL_SELESAI')
             ->value('REKAP_JUMLAH');
         return response()->json([
             'success' => true,
@@ -330,9 +356,11 @@ class ControllerRekapPoin extends Controller
     }
     public function getjumlahaksara($nim)
     {
-        $dataAksara = DB::table('REKAPPOIN_AWARD')
+        $dataAksara = DB::table('REKAPPOIN_AWARD as r')
+            ->join('PERIODE_AWARD as p', 'p.ID_PERIODE', '=', 'r.ID_PERIODE')
             ->where('ID_KATEGORI', 4)
             ->where('NIM', $nim)
+            ->whereRaw('TGL_REKAP BETWEEN TGL_MULAI AND TGL_SELESAI')
             ->value('REKAP_JUMLAH');
         return response()->json([
             'success' => true,
@@ -341,9 +369,11 @@ class ControllerRekapPoin extends Controller
     }
     public function getjumlahkunjungan($nim)
     {
-        $dataKunjungan = DB::table('REKAPPOIN_AWARD')
+        $dataKunjungan = DB::table('REKAPPOIN_AWARD as r')
+            ->join('PERIODE_AWARD as p', 'p.ID_PERIODE', '=', 'r.ID_PERIODE')
             ->where('ID_KATEGORI', 2)
             ->where('NIM', $nim)
+            ->whereRaw('TGL_REKAP BETWEEN TGL_MULAI AND TGL_SELESAI')
             ->value('REKAP_JUMLAH');
         return response()->json([
             'success' => true,
@@ -352,9 +382,11 @@ class ControllerRekapPoin extends Controller
     }
     public function getjumlahpinjaman($nim)
     {
-        $dataPinjaman = DB::table('REKAPPOIN_AWARD')
+        $dataPinjaman = DB::table('REKAPPOIN_AWARD as r')
+            ->join('PERIODE_AWARD as p', 'p.ID_PERIODE', '=', 'r.ID_PERIODE')
             ->where('ID_KATEGORI', 1)
             ->where('NIM', $nim)
+            ->whereRaw('TGL_REKAP BETWEEN TGL_MULAI AND TGL_SELESAI')
             ->value('REKAP_JUMLAH');
         return response()->json([
             'success' => true,
