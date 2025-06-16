@@ -12,21 +12,104 @@ class ControllerRekapPoin extends Controller
     public function readRekapPoin()
     {
         $data = DB::table(DB::raw("(
-        SELECT 
-            ra.nim,
-            vc.nama,
-            vc.status,
-            SUM(COALESCE(ra.REKAP_POIN, 0)) total_rekap,
-            ROW_NUMBER() OVER (ORDER BY SUM(COALESCE(ra.REKAP_POIN, 0)) DESC) peringkat
-        FROM REKAPPOIN_AWARD ra
-        JOIN V_CIVITAS vc ON ra.nim = vc.ID_CIVITAS
-        GROUP BY ra.nim, vc.nama, vc.status
-        HAVING SUM(COALESCE(ra.REKAP_POIN, 0)) > 0
-    ) ranking"))
+                SELECT 
+                    ra.nim,
+                    vc.nama,
+                    vc.status,
+                    SUM(COALESCE(ra.REKAP_POIN, 0)) total_rekap,
+                    ROW_NUMBER() OVER (ORDER BY SUM(COALESCE(ra.REKAP_POIN, 0)) DESC) peringkat
+                FROM REKAPPOIN_AWARD ra
+                JOIN V_CIVITAS vc ON ra.nim = vc.ID_CIVITAS
+                GROUP BY ra.nim, vc.nama, vc.status
+                HAVING SUM(COALESCE(ra.REKAP_POIN, 0)) > 0
+            ) ranking"))
             ->get();
         return response()->json($data);
     }
     public function getRankedMhsBaseBuilder($activePeriodeId)
+    {
+        return DB::table('REKAPPOIN_AWARD as ra')
+            ->join('v_civitas as vc', 'ra.NIM', '=', 'vc.ID_CIVITAS')
+            ->select(
+                'vc.nama',
+                'ra.nim',
+                'vc.status',
+                'vc.jkel',
+                DB::raw('SUM(COALESCE(ra.REKAP_POIN, 0)) as total_rekap_poin'),
+                DB::raw('SUM(CASE WHEN -ra.ID_KATEGORI = 4 THEN COALESCE(ra.REKAP_JUMLAH, 0) ELSE 0 END) as jumlah_aksara_dinamika'),
+                DB::raw('SUM(CASE WHEN ra.ID_KATEGORI = 3 THEN COALESCE(ra.REKAP_JUMLAH, 0) ELSE 0 END) as jumlah_kegiatan'),
+                DB::raw('SUM(CASE WHEN ra.ID_KATEGORI = 2 THEN COALESCE(ra.REKAP_JUMLAH, 0) ELSE 0 END) as jumlah_kunjungan'),
+                DB::raw('SUM(CASE WHEN ra.ID_KATEGORI = 1 THEN COALESCE(ra.REKAP_JUMLAH, 0) ELSE 0 END) as jumlah_pinjaman')
+            )
+            ->where('vc.status', 'MHS')
+            ->where('ra.ID_PERIODE', $activePeriodeId)
+            ->groupBy('ra.nim', 'vc.nama', 'vc.status', 'vc.jkel');
+    }
+    public function readleaderboardMHS(Request $request)
+    {
+        $periodeId = null;
+        $periodeInfo = null;
+
+        // Langkah 1: Cek apakah ada parameter 'periode' di request
+        if ($request->has('periode') && $request->input('periode') != '') {
+            $periodeId = $request->input('periode');
+            // Ambil info periode berdasarkan ID dari request
+            $periodeInfo = DB::table('PERIODE_AWARD')->where('id_periode', $periodeId)->first();
+        } else {
+            // Jika tidak ada parameter, cari periode yang aktif saat ini (logika lama)
+            $periodeInfo = DB::table('PERIODE_AWARD')
+                ->whereRaw('CURRENT_DATE BETWEEN TGL_MULAI AND TGL_SELESAI')
+                ->first();
+        }
+
+        // Jika setelah semua pengecekan periode tetap tidak ditemukan
+        if (!$periodeInfo) {
+            return response()->json([
+                'message' => 'Periode tidak ditemukan atau tidak ada periode yang sedang aktif.',
+                'periode_aktif' => 'Tidak Ada',
+                'leaderboard' => []
+            ], 404);
+        }
+
+        $periodeId = $periodeInfo->id_periode;
+
+        // Langkah 2: Panggil base builder dengan ID periode yang sudah ditentukan
+        $queryBuilder = $this->getRankedMhsBaseBuilder($periodeId);
+
+        // Langkah 3: Ambil bobot berdasarkan ID periode yang sama
+        $bobot = DB::table('Pembobotan_award')
+            ->wherein('id_jenis_bobot', [9, 10, 11, 12])
+            ->where('id_periode', $periodeId) // Gunakan $periodeId
+            ->orderBy('NILAI', 'ASC')
+            ->get();
+
+        $columnMap = [
+            9  => 'jumlah_aksara_dinamika',
+            10 => 'jumlah_kegiatan',
+            11 => 'jumlah_kunjungan',
+            12 => 'jumlah_pinjaman',
+        ];
+
+        $queryBuilder->orderBy('total_rekap_poin', 'DESC');
+
+        foreach ($bobot as $b) {
+            if (isset($columnMap[$b->id_jenis_bobot])) {
+                $columnName = $columnMap[$b->id_jenis_bobot];
+                $queryBuilder->orderBy($columnName, 'DESC');
+            }
+        }
+
+        $queryBuilder->orderBy('nim', 'ASC');
+
+        $leaderboard = $queryBuilder->get();
+
+        // Langkah 4: Struktur respons JSON agar sesuai dengan frontend
+        return response()->json([
+            'periode_aktif' => $periodeInfo->nama_periode, // Kirim nama periode
+            'leaderboard' => $leaderboard
+        ]);
+    }
+    public function getRankedDosenBaseBuilder($activePeriodeId)
     {
         return DB::table('REKAPPOIN_AWARD as ra')
             ->join('v_civitas as vc', 'ra.NIM', '=', 'vc.ID_CIVITAS')
@@ -41,35 +124,48 @@ class ControllerRekapPoin extends Controller
                 DB::raw('SUM(CASE WHEN ra.ID_KATEGORI = 2 THEN COALESCE(ra.REKAP_JUMLAH, 0) ELSE 0 END) as jumlah_kunjungan'),
                 DB::raw('SUM(CASE WHEN ra.ID_KATEGORI = 1 THEN COALESCE(ra.REKAP_JUMLAH, 0) ELSE 0 END) as jumlah_pinjaman')
             )
-            ->where('vc.status', 'MHS')
+            ->wherein('vc.status', ['DOSEN', 'TENDIK'])
             ->where('ra.ID_PERIODE', $activePeriodeId)
             ->groupBy('ra.nim', 'vc.nama', 'vc.status', 'vc.jkel');
     }
-
-    public function readleaderboardMHS()
+    public function readleaderboardDOSEN(Request $request)
     {
-        // Langkah 1: Dapatkan ID periode yang sedang aktif
-        $activePeriode = DB::table('PERIODE_AWARD')
-            ->whereRaw('CURRENT_DATE BETWEEN TGL_MULAI AND TGL_SELESAI')
-            ->select('id_periode') // Menggunakan 'id_periode' (lowercase) sesuai perbaikan sebelumnya
-            ->first();
+        $periodeId = null;
+        $periodeInfo = null;
 
-        if (!$activePeriode) {
-            return response()->json(['message' => 'Tidak ada periode aktif yang ditemukan.'], 404);
+        // Langkah 1: Cek apakah ada parameter 'periode' di request
+        if ($request->has('periode') && $request->input('periode') != '') {
+            $periodeId = $request->input('periode');
+            // Ambil info periode berdasarkan ID dari request
+            $periodeInfo = DB::table('PERIODE_AWARD')->where('id_periode', $periodeId)->first();
+        } else {
+            // Jika tidak ada parameter, cari periode yang aktif saat ini (logika lama)
+            $periodeInfo = DB::table('PERIODE_AWARD')
+                ->whereRaw('CURRENT_DATE BETWEEN TGL_MULAI AND TGL_SELESAI')
+                ->first();
         }
-        $activePeriodeId = $activePeriode->id_periode;
 
-        // Langkah 2: Ambil data leaderboard menggunakan base builder
-        // Karena metode ini ada di dalam kelas yang sama, kita panggil dengan $this
-        $queryBuilder = $this->getRankedMhsBaseBuilder($activePeriodeId);
+        // Jika setelah semua pengecekan periode tetap tidak ditemukan
+        if (!$periodeInfo) {
+            return response()->json([
+                'message' => 'Periode tidak ditemukan atau tidak ada periode yang sedang aktif.',
+                'periode_aktif' => 'Tidak Ada',
+                'leaderboard' => []
+            ], 404);
+        }
 
+        $periodeId = $periodeInfo->id_periode;
+
+        // Langkah 2: Panggil base builder dengan ID periode yang sudah ditentukan
+        $queryBuilder = $this->getRankedDosenBaseBuilder($periodeId);
+
+        // Langkah 3: Ambil bobot berdasarkan ID periode yang sama
         $bobot = DB::table('Pembobotan_award')
             ->wherein('id_jenis_bobot', [9, 10, 11, 12])
-            ->where('id_periode', $activePeriodeId)
+            ->where('id_periode', $periodeId) // Gunakan $periodeId
             ->orderBy('NILAI', 'ASC')
             ->get();
-        // Buat pemetaan dari ID Jenis Bobot ke nama kolom di query utama.
-        // Ini membuat kode lebih mudah dibaca dan dipelihara.
+
         $columnMap = [
             9  => 'jumlah_aksara_dinamika',
             10 => 'jumlah_kegiatan',
@@ -77,45 +173,24 @@ class ControllerRekapPoin extends Controller
             12 => 'jumlah_pinjaman',
         ];
 
-        // Langkah 4: Terapkan aturan pengurutan akhir secara dinamis
-
-        // Aturan pertama yang paling utama tetap 'total_rekap_poin'
         $queryBuilder->orderBy('total_rekap_poin', 'DESC');
 
-        // Terapkan pengurutan dinamis berdasarkan bobot prioritas yang sudah diurutkan
-        foreach ($bobot as $bobot) {
-            // Periksa apakah id_jenis_bobot ada di dalam map kita
-            if (isset($columnMap[$bobot->id_jenis_bobot])) {
-                $columnName = $columnMap[$bobot->id_jenis_bobot];
+        foreach ($bobot as $b) {
+            if (isset($columnMap[$b->id_jenis_bobot])) {
+                $columnName = $columnMap[$b->id_jenis_bobot];
                 $queryBuilder->orderBy($columnName, 'DESC');
             }
         }
 
-        // Terapkan aturan terakhir sebagai tie-breaker (jika semua nilai di atas sama)
-        $queryBuilder->orderBy('nim', 'ASC'); // Setelah groupBy, 'ra.nim' akan menjadi 'nim'
+        $queryBuilder->orderBy('nim', 'ASC');
 
-        // Ambil data hasil akhir
-        $data = $queryBuilder->get();
+        $leaderboard = $queryBuilder->get();
 
-        return response()->json($data);
-    }
-    public function readleaderboardDOSEN()
-    {
-        $data = DB::table('REKAPPOIN_AWARD as ra')
-            ->join('v_civitas as vc', 'ra.NIM', '=', 'vc.ID_CIVITAS')
-            ->select(
-                'vc.nama',
-                'ra.nim',
-                'vc.status',
-                'vc.jkel',
-                DB::raw('SUM(COALESCE(ra.REKAP_POIN, 0)) as total_rekap_poin')
-            )
-            ->wherein('vc.status', ['TENDIK', 'DOSEN'])
-            ->groupBy('ra.nim', 'vc.nama', 'vc.status', 'vc.jkel')
-            ->orderByDesc('total_rekap_poin')
-            ->get();
-
-        return response()->json($data);
+        // Langkah 4: Struktur respons JSON agar sesuai dengan frontend
+        return response()->json([
+            'periode_aktif' => $periodeInfo->nama_periode, // Kirim nama periode
+            'leaderboard' => $leaderboard
+        ]);
     }
     public function readtopleaderboardMHS()
     {

@@ -79,6 +79,7 @@ class ControllerPeriode extends Controller
                 'message' => 'Data periode berhasil ditambahkan menggunakan prosedur Oracle',
                 'data'    => $request->all()
             ], 201);
+                
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
