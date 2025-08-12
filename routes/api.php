@@ -23,6 +23,8 @@ use App\Http\Controllers\Api\ControllerRangeKunjungan;
 use App\Http\Controllers\Api\ControllerRekapPoin;
 use App\Http\Controllers\Api\ControllerReward;
 use App\Http\Controllers\Api\ControllerSertifikat;
+use App\Http\Controllers\ControllerGeneratorSertifikat;
+use App\Http\Controllers\SertifikatTemplateController;
 use Illuminate\Support\Facades\DB;
 
 Route::get('/user', function (Request $request) {
@@ -122,6 +124,8 @@ Route::prefix('periode')->group(function () {
     Route::get('/', [ControllerPeriode::class, 'readPeriode']);
 
     Route::get('/aktif', [ControllerPeriode::class, 'getPeriodeAktif']);
+
+     Route::get('/status-terkini', [ControllerPeriode::class, 'getStatusTerkini']);
 
     // POST /aksara-dinamika - Insert new data
     Route::post('/', [ControllerPeriode::class, 'insPeriode']);
@@ -279,6 +283,8 @@ Route::prefix('sertifikat')->group(function () {
     Route::delete('/{id}', [ControllerSertifikat::class, 'delSertifikat']);
 });
 
+
+
 Route::prefix('kategori-nilai')->group(function () {
     // GET /aksara-dinamika - Read all data
     Route::get('/', [ControllerKategoriNilai::class, 'readKategoriNilai']);
@@ -320,6 +326,7 @@ Route::prefix('perusahaan')->group(function () {
 });
 Route::prefix('penerima-reward')->group(function () {
     Route::get('/', [ControllerPenerimaReward::class, 'readPenerimaReward']);
+    Route::get('/idperiode', [ControllerPenerimaReward::class, 'getActivePeriodeId']);
     Route::post('/', [ControllerPenerimaReward::class, 'insPenerimaReward'])->name('api.reward.claim'); // Named for easier URL generation if needed
     Route::delete('/{id}', [ControllerPenerimaReward::class, 'delPenerimaReward']);
     Route::get('/rewards/active', [ControllerPenerimaReward::class, 'getCurrentActiveRewards'])->name('api.rewards.active');

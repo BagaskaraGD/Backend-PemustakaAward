@@ -14,15 +14,86 @@ class ControllerPenerimaReward extends Controller
     // ... (metode readPenerimaReward, insPenerimaReward, delPenerimaReward tetap sama seperti sebelumnya) ...
     // Pastikan metode insPenerimaReward dan lainnya sudah ada di sini dari jawaban sebelumnya.
 
-    public function readPenerimaReward()
+    protected function getActivePeriodeId(): ?string
     {
-        $data = DB::table('PENERIMA_REWARD')->get();
-        return response()->json([
-            'success' => true,
-            'data'    => $data
-        ]);
+        $now = Carbon::now();
+        // Fetch all periods to determine the active one based on dates
+        $allPeriodes = DB::table('PERIODE_AWARD')->get(); // Fetch all period data
+
+        foreach ($allPeriodes as $periode) {
+            try {
+                $tglMulaiCarbon = Carbon::parse($periode->TGL_MULAI);
+                $tglSelesaiCarbon = Carbon::parse($periode->TGL_SELESAI)->endOfDay();
+
+                if ($now->between($tglMulaiCarbon, $tglSelesaiCarbon)) {
+                    return $periode->ID_PERIODE ?? $periode->id_periode ?? $periode->id ?? null;
+                }
+            } catch (\Exception $e) {
+                Log::error('Error parsing date for active period detection: ' . $e->getMessage(), (array)$periode);
+            }
+        }
+        return null; // No active period found
     }
 
+    public function readPenerimaReward(Request $request)
+    {
+        try {
+            $query = DB::table('PENERIMA_REWARD as pr')
+                ->select(
+                    'pr.id_penerima',
+                    'pr.id_reward',
+                    'pr.id_civitas',
+                    'pr.tgl_terima',
+                    'ra.level_reward',
+                    'ra.slot_reward',
+                    'ra.bentuk_reward',
+                    'ra.id_periode',
+                    'civ.nama as nama_civitas',
+                    'civ.status as status_civitas'
+                )
+                ->leftJoin('REWARD_AWARD as ra', 'pr.id_reward', '=', 'ra.id_reward')
+                ->leftJoin('V_CIVITAS as civ', 'pr.id_civitas', '=', 'civ.id_civitas');
+
+            $inputPeriodeId = $request->input('id_periode');
+
+            if ($request->filled('id_periode')) {
+                // If a period ID is explicitly provided and not empty
+                Log::info('Filtering Penerima Reward with requested periode ID: ' . $inputPeriodeId);
+                $query->whereRaw('ra.id_periode = ?', [$inputPeriodeId]);
+            } else {
+                // If no period ID is provided or it's empty, use the currently active period
+                $activePeriodeId = $this->getActivePeriodeId(); // Call the new helper method
+
+                if ($activePeriodeId) {
+                    $query->where('ra.id_periode', $activePeriodeId);
+                    Log::info('No periode ID provided for Penerima Reward, using active periode ID: ' . $activePeriodeId);
+                } else {
+                    Log::warning('No active periode found for Penerima Reward. Returning empty data.');
+                    return response()->json(['success' => true, 'data' => []]);
+                }
+            }
+
+            $data = $query->orderBy('ra.level_reward', 'asc')
+                ->orderBy('pr.tgl_terima', 'asc')
+                ->get();
+
+            $data->transform(function ($item) {
+                if (strtolower($item->status_civitas) === 'mahasiswa') {
+                    $item->nim = $item->id_civitas;
+                    $item->nidn = null;
+                } else {
+                    $item->nim = null;
+                    $item->nidn = $item->id_civitas;
+                }
+                return $item;
+            });
+
+            return response()->json(['success' => true, 'data' => $data]);
+        } catch (\Exception $e) {
+            Log::error('Gagal membaca data Penerima Reward: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return response()->json(['success' => false, 'message' => 'Terjadi kesalahan server.'], 500);
+        }
+    }
     public function insPenerimaReward(Request $request)
     {
         Log::info('Attempting to claim reward. Payload:', $request->all());
@@ -165,17 +236,17 @@ class ControllerPenerimaReward extends Controller
         try {
             $id_civitas = $request->query('id_civitas'); // Ambil id_civitas dari query parameter
 
-            $currentPeriode = DB::table('PERIODE_AWARD')
-                ->orderBy('TGL_MULAI', 'desc')
+            $activePeriode = DB::table('PERIODE_AWARD')
+                ->whereRaw('CURRENT_DATE BETWEEN TGL_MULAI AND TGL_SELESAI')
                 ->first();
 
-            if (!$currentPeriode) {
+            if (!$activePeriode) {
                 return response()->json(['success' => false, 'message' => 'Periode aktif tidak ditemukan.'], 404);
             }
-            $currentPeriodeId = $currentPeriode->id_periode;
+            $activePeriodeId = $activePeriode->id_periode;
 
             $rewards = DB::table('REWARD_AWARD')
-                ->where('ID_PERIODE', $currentPeriodeId)
+                ->where('ID_PERIODE', $activePeriodeId)
                 ->orderBy('LEVEL_REWARD', 'asc')
                 ->get();
 
@@ -201,8 +272,8 @@ class ControllerPenerimaReward extends Controller
             return response()->json([
                 'success' => true,
                 'data' => $rewards,
-                'current_periode_id' => $currentPeriodeId,
-                'current_periode_nama' => $currentPeriode->nama_periode
+                'current_periode_id' => $activePeriodeId,
+                'current_periode_nama' => $activePeriode->nama_periode
             ]);
         } catch (\Exception $e) {
             Log::error('Error fetching active rewards: ' . $e->getMessage() . ' Trace: ' . $e->getTraceAsString());

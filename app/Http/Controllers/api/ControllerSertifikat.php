@@ -9,6 +9,24 @@ use Illuminate\Support\Facades\Validator;
 
 class ControllerSertifikat extends Controller
 {
+
+    public function getLastId()
+    {
+        try {
+            $lastId = DB::table('sertifikat_pust')->max('id_sertifikat');
+            return response()->json([
+                'success' => true,
+                'last_id' => $lastId ?? 0
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mendapatkan ID terakhir.',
+                'error'   => $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function readSertifikat()
     {
         $data = DB::table('sertifikat_pust')->get();

@@ -216,13 +216,29 @@ class ControllerHistoriStatus extends Controller
     }
     public function getHistoriStatus($nim, $id)
     {
-        $data = DB::table('HISTORI_STATUS as hs')
+        // Query 1: Mengambil data pengajuan awal dari AKSARA_DINAMIKA dan memberinya status 'menunggu'
+        $initial_submission = DB::table('AKSARA_DINAMIKA as ad')
+            ->where('ad.NIM', $nim)
+            ->where('ad.INDUK_BUKU', $id)
+            ->select(
+                DB::raw("'menunggu' as status"), // Memberi nilai 'menunggu' secara manual
+                'ad.REVIEW as keterangan',      // Menggunakan kolom REVIEW sebagai keterangan awal
+                'ad.TGL_REVIEW as tgl_status'   // Menggunakan TGL_REVIEW sebagai tanggal status
+            );
+
+        // Query 2: Mengambil riwayat status yang sudah direview oleh admin dari HISTORI_STATUS
+        $reviewed_history = DB::table('HISTORI_STATUS as hs')
             ->join('AKSARA_DINAMIKA as ad', 'hs.ID_AKSARA_DINAMIKA', '=', 'ad.ID_AKSARA_DINAMIKA')
             ->where('ad.NIM', $nim)
             ->where('ad.INDUK_BUKU', $id)
-            ->select('*')
-            ->orderBy('hs.tgl_status', 'desc')
+            ->select('hs.status', 'hs.keterangan', 'hs.tgl_status');
+
+        // Menggabungkan kedua hasil query menggunakan UNION ALL, lalu mengurutkannya
+        $data = $initial_submission
+            ->unionAll($reviewed_history)
+            ->orderBy('tgl_status', 'desc')
             ->get();
+
         return response()->json([
             'success' => true,
             'data'    => $data
