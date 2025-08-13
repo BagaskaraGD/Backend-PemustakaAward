@@ -16,8 +16,8 @@ class ControllerPeriode extends Controller
 
         // 1. Cek apakah ada periode yang sedang aktif
         $periodeAktif = DB::table('PERIODE_AWARD')
-            ->whereDate('TGL_MULAI', '<=', $currentDate)
-            ->whereDate('TGL_SELESAI', '>=', $currentDate)
+            ->where('TGL_MULAI', '<=', $currentDate)
+            ->where('TGL_SELESAI', '>=', $currentDate->copy()->startOfDay())
             ->orderBy('ID_PERIODE', 'desc')
             ->first();
 

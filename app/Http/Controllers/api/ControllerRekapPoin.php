@@ -422,8 +422,8 @@ class ControllerRekapPoin extends Controller
             ->join('PERIODE_AWARD as p', 'p.ID_PERIODE', '=', 'r.ID_PERIODE')
             ->where('ID_KATEGORI', 3)
             ->where('NIM', $nim)
-            ->whereRaw('TGL_REKAP BETWEEN TGL_MULAI AND TGL_SELESAI')
-            ->value('REKAP_JUMLAH');
+            ->whereRaw('CURRENT_DATE BETWEEN TGL_MULAI AND TGL_SELESAI')
+            ->value('r.REKAP_JUMLAH');
         return response()->json([
             'success' => true,
             'jumlah_kegiatan' => $dataKegiatan
@@ -435,7 +435,7 @@ class ControllerRekapPoin extends Controller
             ->join('PERIODE_AWARD as p', 'p.ID_PERIODE', '=', 'r.ID_PERIODE')
             ->where('ID_KATEGORI', 4)
             ->where('NIM', $nim)
-            ->whereRaw('TGL_REKAP BETWEEN TGL_MULAI AND TGL_SELESAI')
+            ->whereRaw('CURRENT_DATE BETWEEN TGL_MULAI AND TGL_SELESAI')
             ->value('REKAP_JUMLAH');
         return response()->json([
             'success' => true,
@@ -448,7 +448,7 @@ class ControllerRekapPoin extends Controller
             ->join('PERIODE_AWARD as p', 'p.ID_PERIODE', '=', 'r.ID_PERIODE')
             ->where('ID_KATEGORI', 2)
             ->where('NIM', $nim)
-            ->whereRaw('TGL_REKAP BETWEEN TGL_MULAI AND TGL_SELESAI')
+            ->whereRaw('CURRENT_DATE BETWEEN TGL_MULAI AND TGL_SELESAI')
             ->value('REKAP_JUMLAH');
         return response()->json([
             'success' => true,
@@ -461,7 +461,7 @@ class ControllerRekapPoin extends Controller
             ->join('PERIODE_AWARD as p', 'p.ID_PERIODE', '=', 'r.ID_PERIODE')
             ->where('ID_KATEGORI', 1)
             ->where('NIM', $nim)
-            ->whereRaw('TGL_REKAP BETWEEN TGL_MULAI AND TGL_SELESAI')
+            ->whereRaw('CURRENT_DATE BETWEEN TGL_MULAI AND TGL_SELESAI')
             ->value('REKAP_JUMLAH');
         return response()->json([
             'success' => true,
