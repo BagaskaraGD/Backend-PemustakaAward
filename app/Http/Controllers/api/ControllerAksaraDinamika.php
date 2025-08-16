@@ -203,53 +203,33 @@ class ControllerAksaraDinamika extends Controller
     public function getuserakasradinamika($nim)
     {
         $data = DB::select("
-        	SELECT
-	    ID_AKSARA_DINAMIKA,
-	    INDUK_BUKU,
-	    JUDUL,
-	    TGL_KONFIRMASI,
-	    NAMA_PERIODE,
-	    STATUS
-	FROM (
-	    WITH StatusTerbaru AS (
-	        SELECT
-	            ID_AKSARA_DINAMIKA,
-	            STATUS,
-	            TGL_STATUS,
-	            ROW_NUMBER() OVER (
-	                PARTITION BY ID_AKSARA_DINAMIKA
-	                ORDER BY TGL_STATUS DESC
-	            ) AS rn
-	        FROM HISTORI_STATUS
-	    ),
-	    DataUnikPerInduk AS (
-	        SELECT
-	            ad.ID_AKSARA_DINAMIKA,
-	            ad.INDUK_BUKU,
-	            vbp.JUDUL,
-	            COALESCE(st.TGL_STATUS, ad.TGL_REVIEW) AS TGL_KONFIRMASI,
-	            pa.NAMA_PERIODE,
-	            COALESCE(st.STATUS, 'menunggu') AS STATUS,
-	            ROW_NUMBER() OVER (
-	                PARTITION BY ad.INDUK_BUKU
-	                ORDER BY ad.TGL_REVIEW DESC
-	            ) AS rn
-	        FROM AKSARA_DINAMIKA ad
-	        LEFT JOIN StatusTerbaru st
-	            ON ad.ID_AKSARA_DINAMIKA = st.ID_AKSARA_DINAMIKA
-	            AND st.rn = 1
-	        -- Mengubah kondisi JOIN untuk PERIODE_AWARD
-	        JOIN PERIODE_AWARD pa
-	            ON COALESCE(st.TGL_STATUS, ad.TGL_REVIEW) BETWEEN pa.TGL_MULAI AND pa.TGL_SELESAI
-	        JOIN (
-	            SELECT DISTINCT INDUK, JUDUL FROM V_BUKU_PUST
-	        ) vbp ON ad.INDUK_BUKU = vbp.INDUK
-	        WHERE ad.NIM = ? AND ad.REVIEW IS NOT NULL
-	
-	    )
-	    SELECT * FROM DataUnikPerInduk
-	    WHERE rn = 1
-	) ORDER BY ID_AKSARA_DINAMIKA
+        SELECT
+            ID_AKSARA_DINAMIKA, INDUK_BUKU, JUDUL, TGL_KONFIRMASI, NAMA_PERIODE, STATUS
+        FROM (
+            WITH StatusTerbaru AS (
+                SELECT ID_AKSARA_DINAMIKA, STATUS, TGL_STATUS,
+                       ROW_NUMBER() OVER (PARTITION BY ID_AKSARA_DINAMIKA ORDER BY TGL_STATUS DESC) AS rn
+                FROM HISTORI_STATUS
+            ),
+            DataUnikPerInduk AS (
+                SELECT
+                    ad.ID_AKSARA_DINAMIKA, ad.INDUK_BUKU, vbp.JUDUL,
+                    COALESCE(st.TGL_STATUS, ad.TGL_REVIEW) AS TGL_KONFIRMASI,
+                    pa.NAMA_PERIODE,
+                    COALESCE(st.STATUS, 'menunggu') AS STATUS,
+                    ROW_NUMBER() OVER (PARTITION BY ad.INDUK_BUKU ORDER BY ad.TGL_REVIEW DESC) AS rn
+                FROM AKSARA_DINAMIKA ad
+                LEFT JOIN StatusTerbaru st ON ad.ID_AKSARA_DINAMIKA = st.ID_AKSARA_DINAMIKA AND st.rn = 1
+                -- LOGIKA JOIN YANG SUDAH DIPERBAIKI --
+                JOIN PERIODE_AWARD pa ON COALESCE(st.TGL_STATUS, ad.TGL_REVIEW) >= pa.TGL_MULAI AND COALESCE(st.TGL_STATUS, ad.TGL_REVIEW) < pa.TGL_SELESAI + INTERVAL '1' DAY
+                JOIN (
+                    SELECT DISTINCT INDUK, JUDUL FROM V_BUKU_PUST
+                ) vbp ON ad.INDUK_BUKU = vbp.INDUK
+                WHERE ad.NIM = ? AND ad.REVIEW IS NOT NULL
+            )
+            SELECT * FROM DataUnikPerInduk
+            WHERE rn = 1
+        ) ORDER BY ID_AKSARA_DINAMIKA
     ", [$nim]);
 
         return response()->json([

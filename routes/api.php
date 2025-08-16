@@ -125,7 +125,7 @@ Route::prefix('periode')->group(function () {
 
     Route::get('/aktif', [ControllerPeriode::class, 'getPeriodeAktif']);
 
-     Route::get('/status-terkini', [ControllerPeriode::class, 'getStatusTerkini']);
+    Route::get('/status-terkini', [ControllerPeriode::class, 'getStatusTerkini']);
 
     // POST /aksara-dinamika - Insert new data
     Route::post('/', [ControllerPeriode::class, 'insPeriode']);
@@ -330,6 +330,7 @@ Route::prefix('penerima-reward')->group(function () {
     Route::post('/', [ControllerPenerimaReward::class, 'insPenerimaReward'])->name('api.reward.claim'); // Named for easier URL generation if needed
     Route::delete('/{id}', [ControllerPenerimaReward::class, 'delPenerimaReward']);
     Route::get('/rewards/active', [ControllerPenerimaReward::class, 'getCurrentActiveRewards'])->name('api.rewards.active');
+    Route::get('/voucher/{id}', [ControllerPenerimaReward::class, 'generateVoucher'])->name('api.rewards.voucher');
 });
 Route::prefix('kota')->group(function () {
     Route::get('/', [ControllerKota::class, 'readKota']);
@@ -374,9 +375,11 @@ Route::get('/pinjaman-count/{nim}', function ($nim) {
 
 Route::get('/myrank/mhs/{id}', function ($id) {
     // Langkah 1: Dapatkan ID periode yang sedang aktif
+    $currentDate = \Carbon\Carbon::now();
     $activePeriode = DB::table('PERIODE_AWARD')
-        ->whereRaw('CURRENT_DATE BETWEEN TGL_MULAI AND TGL_SELESAI')
-        ->select('id_periode') // Menggunakan 'id_periode' (lowercase) sesuai perbaikan sebelumnya
+        ->where('TGL_MULAI', '<=', $currentDate)
+        ->where('TGL_SELESAI', '>=', $currentDate->copy()->startOfDay())
+        ->orderBy('ID_PERIODE', 'desc')
         ->first();
 
     if (!$activePeriode) {
@@ -449,9 +452,11 @@ Route::get('/myrank/mhs/{id}', function ($id) {
 
 Route::get('/myrank/dosen/{id}', function ($id) {
     // Langkah 1: Dapatkan ID periode yang sedang aktif
+    $currentDate = \Carbon\Carbon::now();
     $activePeriode = DB::table('PERIODE_AWARD')
-        ->whereRaw('CURRENT_DATE BETWEEN TGL_MULAI AND TGL_SELESAI')
-        ->select('id_periode') // Menggunakan 'id_periode' (lowercase) sesuai perbaikan sebelumnya
+        ->where('TGL_MULAI', '<=', $currentDate)
+        ->where('TGL_SELESAI', '>=', $currentDate->copy()->startOfDay())
+        ->orderBy('ID_PERIODE', 'desc')
         ->first();
 
     if (!$activePeriode) {
@@ -504,7 +509,7 @@ Route::get('/myrank/dosen/{id}', function ($id) {
         // Anda bisa mencoba mengambil data mahasiswa dari v_civitas sebagai fallback
         // atau mengembalikan null/pesan khusus.
         // Contoh fallback:
-        $civitasData = DB::table('v_civitas')->where('ID_CIVITAS', $id)->whereIn('status', ['DOSEN','TENDIK'])->first();
+        $civitasData = DB::table('v_civitas')->where('ID_CIVITAS', $id)->whereIn('status', ['DOSEN', 'TENDIK'])->first();
         if ($civitasData) {
             $data = (object)[
                 'nama' => $civitasData->nama,

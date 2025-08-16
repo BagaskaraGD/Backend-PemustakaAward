@@ -8,31 +8,26 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
+use Barryvdh\DomPDF\Facade\Pdf; // Import library PDF
 
 class ControllerPenerimaReward extends Controller
 {
+    private function ambilPeriodeAktif()
+    {
+        $currentDate = Carbon::now();
+        return DB::table('PERIODE_AWARD')
+            ->where('TGL_MULAI', '<=', $currentDate)
+            ->where('TGL_SELESAI', '>=', $currentDate->copy()->startOfDay())
+            ->orderBy('ID_PERIODE', 'desc')
+            ->first(); // Mengambil satu data object lengkap
+    }
     // ... (metode readPenerimaReward, insPenerimaReward, delPenerimaReward tetap sama seperti sebelumnya) ...
     // Pastikan metode insPenerimaReward dan lainnya sudah ada di sini dari jawaban sebelumnya.
 
     protected function getActivePeriodeId(): ?string
     {
-        $now = Carbon::now();
-        // Fetch all periods to determine the active one based on dates
-        $allPeriodes = DB::table('PERIODE_AWARD')->get(); // Fetch all period data
-
-        foreach ($allPeriodes as $periode) {
-            try {
-                $tglMulaiCarbon = Carbon::parse($periode->TGL_MULAI);
-                $tglSelesaiCarbon = Carbon::parse($periode->TGL_SELESAI)->endOfDay();
-
-                if ($now->between($tglMulaiCarbon, $tglSelesaiCarbon)) {
-                    return $periode->ID_PERIODE ?? $periode->id_periode ?? $periode->id ?? null;
-                }
-            } catch (\Exception $e) {
-                Log::error('Error parsing date for active period detection: ' . $e->getMessage(), (array)$periode);
-            }
-        }
-        return null; // No active period found
+        $periode = $this->ambilPeriodeAktif();
+        return $periode ? $periode->id_periode : null;
     }
 
     public function readPenerimaReward(Request $request)
@@ -234,38 +229,46 @@ class ControllerPenerimaReward extends Controller
     public function getCurrentActiveRewards(Request $request)
     {
         try {
-            $id_civitas = $request->query('id_civitas'); // Ambil id_civitas dari query parameter
+            $id_civitas = $request->query('id_civitas');
 
-            $activePeriode = DB::table('PERIODE_AWARD')
-                ->whereRaw('CURRENT_DATE BETWEEN TGL_MULAI AND TGL_SELESAI')
-                ->first();
+            // Panggil fungsi bantuan yang sudah benar dan efisien
+            $activePeriode = $this->ambilPeriodeAktif();
 
             if (!$activePeriode) {
                 return response()->json(['success' => false, 'message' => 'Periode aktif tidak ditemukan.'], 404);
             }
+
             $activePeriodeId = $activePeriode->id_periode;
 
+            // ... sisa dari kode Anda sudah benar ...
             $rewards = DB::table('REWARD_AWARD')
                 ->where('ID_PERIODE', $activePeriodeId)
                 ->orderBy('LEVEL_REWARD', 'asc')
                 ->get();
 
-            // Tambahkan informasi claimed_slots dan sudah_diklaim_user
             foreach ($rewards as $reward) {
-                // Jumlah global slot yang sudah diklaim untuk reward ini
                 $reward->claimed_slots = DB::table('PENERIMA_REWARD')
                     ->where('ID_REWARD', $reward->id_reward)
                     ->count();
 
-                // Apakah pengguna saat ini sudah mengklaim reward ini?
                 if ($id_civitas) {
+                    // ===============================================================
+                    // PERUBAHAN #1: Ubah exists() menjadi first() untuk mendapatkan data
+                    // ===============================================================
                     $userClaim = DB::table('PENERIMA_REWARD')
                         ->where('ID_REWARD', $reward->id_reward)
                         ->where('ID_CIVITAS', $id_civitas)
-                        ->first();
+                        ->first(); // <-- UBAH DI SINI
+
                     $reward->sudah_diklaim_user = !is_null($userClaim);
+
+                    // ===============================================================
+                    // PERUBAHAN #2: Tambahkan id_penerima ke dalam response
+                    // ===============================================================
+                    $reward->id_penerima = $userClaim ? $userClaim->id_penerima : null;
                 } else {
-                    $reward->sudah_diklaim_user = false; // Default jika tidak ada id_civitas
+                    $reward->sudah_diklaim_user = false;
+                    $reward->id_penerima = null; // Pastikan properti ini ada
                 }
             }
 
@@ -282,5 +285,35 @@ class ControllerPenerimaReward extends Controller
                 'message' => 'Gagal mengambil data reward aktif.',
             ], 500);
         }
+    }
+    public function generateVoucher($id_penerima)
+    {
+        try{
+            // 1. Ambil data detail reward yang sudah diklaim dari database
+        $voucherData = DB::table('PENERIMA_REWARD as pr')
+            ->join('REWARD_AWARD as ra', 'pr.ID_REWARD', '=', 'ra.ID_REWARD')
+            ->join('V_CIVITAS as vc', 'pr.ID_CIVITAS', '=', 'vc.ID_CIVITAS')
+            ->where('pr.ID_PENERIMA', $id_penerima)
+            ->select(
+                'vc.NAMA as nama_penerima',
+                'ra.LEVEL_REWARD as level_reward',
+                'ra.BENTUK_REWARD as bentuk_reward',
+                'pr.TGL_TERIMA as tanggal_klaim'
+            )
+            ->first();
+
+        return response()->json([
+                'success' => true,
+                'data' => $voucherData,
+            ]);
+
+        }catch(\Exception $e){
+            Log::error('Error fetching voucher data: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengambil data voucher.',
+            ], 500);    
+        }
+        
     }
 }

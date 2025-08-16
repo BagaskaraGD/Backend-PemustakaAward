@@ -186,6 +186,7 @@ class ControllerHadirKegiatan extends Controller
                 'jkp.BOBOT'
             )
             ->where('hp.nim', '=', $nim)
+            ->orderBy('jkp.TGL_KEGIATAN', 'asc')
             ->get();
         return response()->json([
             'success' => true,

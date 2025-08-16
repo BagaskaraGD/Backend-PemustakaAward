@@ -3,12 +3,23 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class ControllerPembobotan extends Controller
 {
+    private function getActivePeriod()
+    {
+        $currentDate = Carbon::now();
+        return DB::table('periode_award')
+            ->select('id_periode')
+            ->where('TGL_MULAI', '<=', $currentDate)
+            ->where('TGL_SELESAI', '>=', $currentDate->copy()->startOfDay())
+            ->orderBy('ID_PERIODE', 'desc')
+            ->first();
+    }
     public function readPembobotan()
     {
         $pembobotan = DB::table('pembobotan_award')->get();
@@ -16,10 +27,7 @@ class ControllerPembobotan extends Controller
     }
     public function getNilailevel1()
     {
-        $idPeriode = DB::table('periode_award')
-            ->select('id_periode')
-            ->whereRaw('CURRENT_DATE BETWEEN TGL_MULAI AND TGL_SELESAI')
-            ->first();
+         $idPeriode = $this->getActivePeriod();
 
         if (!$idPeriode) {
             return response()->json(['message' => 'Tidak ada periode aktif'], 404);
@@ -35,10 +43,7 @@ class ControllerPembobotan extends Controller
     }
     public function getNilailevel2()
     {
-        $idPeriode = DB::table('periode_award')
-            ->select('id_periode')
-            ->whereRaw('CURRENT_DATE BETWEEN TGL_MULAI AND TGL_SELESAI')
-            ->first();
+         $idPeriode = $this->getActivePeriod();
 
         if (!$idPeriode) {
             return response()->json(['message' => 'Tidak ada periode aktif'], 404);
@@ -54,10 +59,7 @@ class ControllerPembobotan extends Controller
     }
     public function getNilailevel3()
     {
-        $idPeriode = DB::table('periode_award')
-            ->select('id_periode')
-            ->whereRaw('CURRENT_DATE BETWEEN TGL_MULAI AND TGL_SELESAI')
-            ->first();
+         $idPeriode = $this->getActivePeriod();
 
         if (!$idPeriode) {
             return response()->json(['message' => 'Tidak ada periode aktif'], 404);

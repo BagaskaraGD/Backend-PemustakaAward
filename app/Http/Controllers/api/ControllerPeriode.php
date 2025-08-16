@@ -123,22 +123,19 @@ class ControllerPeriode extends Controller
 
         return response()->json($data);
     }
-    public function getPeriodeAktif() // Tidak perlu Request $request jika tidak dipakai
+    public function getPeriodeAktif()
     {
-        $currentDate = Carbon::now()->toDateString();
+        // Gunakan objek Carbon secara utuh untuk konsistensi
+        $currentDate = Carbon::now();
 
-        // Mengambil dari tabel 'periode_award' (berdasarkan method readPeriode Anda)
+        // Mengambil dari tabel 'periode_award' dengan logika yang sudah terbukti benar
         $periodeAktif = DB::table('periode_award')
             ->where('TGL_MULAI', '<=', $currentDate)
-            ->where('TGL_SELESAI', '>=', $currentDate)
-            // Anda mungkin punya kolom status seperti 'STATUS_PERIODE' = 'AKTIF'
-            // ->where('STATUS_PERIODE', 'AKTIF') 
-            ->orderBy('ID_PERIODE', 'desc') // Mengambil yang terbaru jika ada overlap
-            ->first(); // Hanya mengambil satu periode aktif
+            ->where('TGL_SELESAI', '>=', $currentDate->copy()->startOfDay()) // <-- Logika yang sama & benar
+            ->orderBy('ID_PERIODE', 'desc')
+            ->first();
 
         if ($periodeAktif) {
-            // Mengembalikan response yang konsisten dengan ekspektasi RekapPoinService:
-            // {'data': [{'ID_PERIODE': xxx, ...}]}
             return response()->json(['data' => [$periodeAktif]]);
         } else {
             return response()->json(['data' => [], 'message' => 'Tidak ada periode aktif ditemukan saat ini.'], 404);

@@ -3,12 +3,27 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class ControllerRekapPoin extends Controller
 {
+    private function getJumlahForAktifPeriode($nim, $kategoriId)
+    {
+        return DB::table('REKAPPOIN_AWARD as r')
+            ->join('PERIODE_AWARD as p', 'p.ID_PERIODE', '=', 'r.ID_PERIODE')
+            ->where('r.ID_KATEGORI', $kategoriId) // Dynamic category ID
+            ->where('r.NIM', $nim)
+            // The corrected logic for finding the active period
+            ->where(function ($query) {
+                $currentDate = Carbon::now();
+                $query->where('p.TGL_MULAI', '<=', $currentDate)
+                    ->where('p.TGL_SELESAI', '>=', $currentDate->copy()->startOfDay());
+            })
+            ->value('r.REKAP_JUMLAH'); // Get the single value
+    }
     public function readRekapPoin()
     {
         $data = DB::table(DB::raw("(
@@ -57,8 +72,11 @@ class ControllerRekapPoin extends Controller
             $periodeInfo = DB::table('PERIODE_AWARD')->where('id_periode', $periodeId)->first();
         } else {
             // Jika tidak ada parameter, cari periode yang aktif saat ini (logika lama)
+            $currentDate = \Carbon\Carbon::now();
             $periodeInfo = DB::table('PERIODE_AWARD')
-                ->whereRaw('CURRENT_DATE BETWEEN TGL_MULAI AND TGL_SELESAI')
+                ->where('TGL_MULAI', '<=', $currentDate)
+                ->where('TGL_SELESAI', '>=', $currentDate->copy()->startOfDay())
+                ->orderBy('ID_PERIODE', 'desc')
                 ->first();
         }
 
@@ -140,8 +158,11 @@ class ControllerRekapPoin extends Controller
             $periodeInfo = DB::table('PERIODE_AWARD')->where('id_periode', $periodeId)->first();
         } else {
             // Jika tidak ada parameter, cari periode yang aktif saat ini (logika lama)
+            $currentDate = \Carbon\Carbon::now();
             $periodeInfo = DB::table('PERIODE_AWARD')
-                ->whereRaw('CURRENT_DATE BETWEEN TGL_MULAI AND TGL_SELESAI')
+                ->where('TGL_MULAI', '<=', $currentDate)
+                ->where('TGL_SELESAI', '>=', $currentDate->copy()->startOfDay())
+                ->orderBy('ID_PERIODE', 'desc')
                 ->first();
         }
 
@@ -418,54 +439,34 @@ class ControllerRekapPoin extends Controller
     }
     public function getjumlahkegiatan($nim)
     {
-        $dataKegiatan = DB::table('REKAPPOIN_AWARD as r')
-            ->join('PERIODE_AWARD as p', 'p.ID_PERIODE', '=', 'r.ID_PERIODE')
-            ->where('ID_KATEGORI', 3)
-            ->where('NIM', $nim)
-            ->whereRaw('CURRENT_DATE BETWEEN TGL_MULAI AND TGL_SELESAI')
-            ->value('r.REKAP_JUMLAH');
+        $jumlah = $this->getJumlahForAktifPeriode($nim, 3);
         return response()->json([
             'success' => true,
-            'jumlah_kegiatan' => $dataKegiatan
+            'jumlah_kegiatan' => $jumlah
         ]);
     }
     public function getjumlahaksara($nim)
     {
-        $dataAksara = DB::table('REKAPPOIN_AWARD as r')
-            ->join('PERIODE_AWARD as p', 'p.ID_PERIODE', '=', 'r.ID_PERIODE')
-            ->where('ID_KATEGORI', 4)
-            ->where('NIM', $nim)
-            ->whereRaw('CURRENT_DATE BETWEEN TGL_MULAI AND TGL_SELESAI')
-            ->value('REKAP_JUMLAH');
+        $jumlah = $this->getJumlahForAktifPeriode($nim, 4);
         return response()->json([
             'success' => true,
-            'jumlah_aksara_dinamika' => $dataAksara
+            'jumlah_aksara_dinamika' => $jumlah
         ]);
     }
     public function getjumlahkunjungan($nim)
     {
-        $dataKunjungan = DB::table('REKAPPOIN_AWARD as r')
-            ->join('PERIODE_AWARD as p', 'p.ID_PERIODE', '=', 'r.ID_PERIODE')
-            ->where('ID_KATEGORI', 2)
-            ->where('NIM', $nim)
-            ->whereRaw('CURRENT_DATE BETWEEN TGL_MULAI AND TGL_SELESAI')
-            ->value('REKAP_JUMLAH');
+        $jumlah = $this->getJumlahForAktifPeriode($nim, 2);
         return response()->json([
             'success' => true,
-            'jumlah_kunjungan' => $dataKunjungan
+            'jumlah_kunjungan' => $jumlah
         ]);
     }
     public function getjumlahpinjaman($nim)
     {
-        $dataPinjaman = DB::table('REKAPPOIN_AWARD as r')
-            ->join('PERIODE_AWARD as p', 'p.ID_PERIODE', '=', 'r.ID_PERIODE')
-            ->where('ID_KATEGORI', 1)
-            ->where('NIM', $nim)
-            ->whereRaw('CURRENT_DATE BETWEEN TGL_MULAI AND TGL_SELESAI')
-            ->value('REKAP_JUMLAH');
+        $jumlah = $this->getJumlahForAktifPeriode($nim, 1);
         return response()->json([
             'success' => true,
-            'jumlah_pinjaman' => $dataPinjaman
+            'jumlah_pinjaman' => $jumlah
         ]);
     }
 }
