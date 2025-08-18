@@ -127,6 +127,8 @@ Route::prefix('periode')->group(function () {
 
     Route::get('/status-terkini', [ControllerPeriode::class, 'getStatusTerkini']);
 
+    Route::get('/historical', [ControllerPeriode::class, 'readHistoricalPeriode']);
+
     // POST /aksara-dinamika - Insert new data
     Route::post('/', [ControllerPeriode::class, 'insPeriode']);
 

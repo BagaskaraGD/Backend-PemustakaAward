@@ -119,7 +119,9 @@ class ControllerPeriode extends Controller
     public function readPeriode()
     {
         // Ambil data periode dari database
-        $data = DB::table('periode_award')->get();
+        $data = DB::table('periode_award')
+            ->orderBy('ID_PERIODE', 'asc')
+            ->get();
 
         return response()->json($data);
     }
@@ -197,7 +199,7 @@ class ControllerPeriode extends Controller
                         'ID_KATEGORI' => $kategori_id,
                         'REKAP_POIN' => 0, // Nilai awal
                         'REKAP_JUMLAH' => 0, // Nilai awal
-                        'TGL_REKAP' => now()
+                        'TGL_REKAP' => \Carbon\Carbon::now('Asia/Jakarta')
                     ]);
                 }
             }
@@ -325,5 +327,15 @@ class ControllerPeriode extends Controller
                 'error'   => $e->getMessage()
             ], 500);
         }
+    }
+    public function readHistoricalPeriode()
+    {
+        // Ambil data periode yang tanggal mulainya sudah lewat atau sama dengan hari ini
+        $data = DB::table('periode_award')
+            ->where('tgl_mulai', '<=', Carbon::now()) // <-- Kunci Logika
+            ->orderBy('tgl_mulai', 'asc') // Urutkan dari yang terbaru
+            ->get();
+            
+        return response()->json($data);
     }
 }
